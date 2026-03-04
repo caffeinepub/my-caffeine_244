@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { useActor } from "@/hooks/useActor";
 import {
   useCreateLawyer,
   useCreateListing,
@@ -51,6 +52,7 @@ import {
   getUpazilasForDistrict,
 } from "@/utils/bangladeshData";
 import { formatBDT, getLandTypeLabel, getStatusLabel } from "@/utils/format";
+import { getSecretParameter } from "@/utils/urlParams";
 import type React from "react";
 
 import { Link } from "@tanstack/react-router";
@@ -226,6 +228,7 @@ function FormDialogShell({
 type LoginView = "login" | "forgot" | "reset_success";
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const { actor } = useActor();
   const [view, setView] = useState<LoginView>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -247,6 +250,20 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
     await new Promise((r) => setTimeout(r, 400));
     const creds = getAdminCredentials();
     if (username === creds.username && password === creds.password) {
+      // Initialize backend actor with admin token so mutations work
+      try {
+        const token = getSecretParameter("caffeineAdminToken") || "";
+        if (actor && token) {
+          // _initializeAccessControlWithSecret is a platform method not in the type def
+          await (
+            actor as unknown as {
+              _initializeAccessControlWithSecret: (t: string) => Promise<void>;
+            }
+          )._initializeAccessControlWithSecret(token);
+        }
+      } catch {
+        // Non-fatal — proceed with login even if token init fails
+      }
       onLogin();
     } else {
       toast.error("ভুল ইউজারনেম বা পাসওয়ার্ড");
@@ -1335,6 +1352,7 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 
 // ===== LISTINGS MANAGEMENT =====
 function ListingsManagement() {
+  const { actor, isFetching: actorFetching } = useActor();
   const { data: listings, isLoading } = useGetAllListings();
   const deleteMut = useDeleteListing();
   const toggleFeaturedMut = useToggleFeatured();
@@ -1398,6 +1416,10 @@ function ListingsManagement() {
   };
 
   const handleSave = async () => {
+    if (!actor || actorFetching) {
+      toast.error("সার্ভারের সাথে সংযোগ নেই। পেজ রিফ্রেশ করুন।");
+      return;
+    }
     if (!form.title || !form.district) {
       toast.error("শিরোনাম ও জেলা আবশ্যক");
       return;
@@ -1414,8 +1436,9 @@ function ListingsManagement() {
         toast.success("নতুন লিস্টিং যোগ করা হয়েছে");
       }
       setShowForm(false);
-    } catch {
-      toast.error("সমস্যা হয়েছে");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`সংরক্ষণ ব্যর্থ: ${msg}`);
     }
   };
 
@@ -1892,6 +1915,7 @@ function ListingsManagement() {
 
 // ===== LAWYERS MANAGEMENT =====
 function LawyersManagement() {
+  const { actor: lawyerActor, isFetching: lawyerActorFetching } = useActor();
   const { data: lawyers, isLoading } = useGetAllLawyers();
   const createMut = useCreateLawyer();
   const updateMut = useUpdateLawyer();
@@ -1932,6 +1956,10 @@ function LawyersManagement() {
   };
 
   const handleSave = async () => {
+    if (!lawyerActor || lawyerActorFetching) {
+      toast.error("সার্ভারের সাথে সংযোগ নেই। পেজ রিফ্রেশ করুন।");
+      return;
+    }
     if (!form.name || !form.phone) {
       toast.error("নাম ও ফোন আবশ্যক");
       return;
@@ -1948,8 +1976,9 @@ function LawyersManagement() {
         toast.success("আইনজীবী যোগ করা হয়েছে");
       }
       setShowForm(false);
-    } catch {
-      toast.error("সমস্যা হয়েছে");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`সংরক্ষণ ব্যর্থ: ${msg}`);
     }
   };
 
@@ -2261,6 +2290,7 @@ function LawyersManagement() {
 
 // ===== NEWS MANAGEMENT =====
 function NewsManagement() {
+  const { actor: newsActor, isFetching: newsActorFetching } = useActor();
   const { data: news, isLoading } = useGetAllNews();
   const createMut = useCreateNewsArticle();
   const updateMut = useUpdateNewsArticle();
@@ -2299,6 +2329,10 @@ function NewsManagement() {
   };
 
   const handleSave = async () => {
+    if (!newsActor || newsActorFetching) {
+      toast.error("সার্ভারের সাথে সংযোগ নেই। পেজ রিফ্রেশ করুন।");
+      return;
+    }
     if (!form.title || !form.content) {
       toast.error("শিরোনাম ও বিষয়বস্তু আবশ্যক");
       return;
@@ -2315,8 +2349,9 @@ function NewsManagement() {
         toast.success("সংবাদ প্রকাশিত হয়েছে");
       }
       setShowForm(false);
-    } catch {
-      toast.error("সমস্যা হয়েছে");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`সংরক্ষণ ব্যর্থ: ${msg}`);
     }
   };
 
