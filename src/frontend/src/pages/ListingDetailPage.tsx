@@ -7,23 +7,18 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useInternetIdentity } from "@/hooks/useInternetIdentity";
-import { useLocalListings } from "@/hooks/useLocalStore";
+import { useLocalListings, useLocalOffers } from "@/hooks/useLocalStore";
 import {
-  useCounterOffer,
   useGetDocuments,
-  useGetOffersByListing,
   useGetPropertyHistory,
   useGetSoilReport,
   useRequestDocumentAccess,
-  useSubmitOffer,
-  useUpdateOfferStatus,
 } from "@/hooks/useQueries";
 import {
   formatArea,
@@ -53,8 +48,6 @@ import {
   Send,
   ShieldCheck,
   Star,
-  ThumbsDown,
-  ThumbsUp,
   Unlock,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -89,10 +82,12 @@ export function ListingDetailPage() {
   const { data: history } = useGetPropertyHistory(id);
   const { data: soilReport } = useGetSoilReport(id);
   const { data: documents } = useGetDocuments(id);
-  const { data: offers } = useGetOffersByListing(id);
+  const {
+    offers,
+    submitOffer,
+    counterOffer: localCounterOffer,
+  } = useLocalOffers(id);
 
-  const submitOfferMut = useSubmitOffer();
-  const counterOfferMut = useCounterOffer();
   const requestAccessMut = useRequestDocumentAccess();
 
   const toggleCheck = (id: number) => {
@@ -101,7 +96,7 @@ export function ListingDetailPage() {
     );
   };
 
-  const handleSubmitOffer = async () => {
+  const handleSubmitOffer = () => {
     if (!offerPrice || Number.isNaN(Number(offerPrice))) {
       toast.error("সঠিক মূল্য দিন");
       return;
@@ -123,7 +118,7 @@ export function ListingDetailPage() {
       updatedAt: BigInt(Date.now() * 1_000_000),
     };
     try {
-      await submitOfferMut.mutateAsync(offer);
+      submitOffer(offer);
       toast.success("অফার পাঠানো হয়েছে!");
       setOfferPrice("");
       setOfferMessage("");
@@ -134,14 +129,14 @@ export function ListingDetailPage() {
     }
   };
 
-  const handleCounterOffer = async () => {
+  const handleCounterOffer = () => {
     if (!counterDialogOffer || !counterPrice) return;
     try {
-      await counterOfferMut.mutateAsync({
-        id: counterDialogOffer.id,
-        counterPrice: BigInt(Math.round(Number(counterPrice))),
+      localCounterOffer(
+        counterDialogOffer.id,
+        BigInt(Math.round(Number(counterPrice))),
         counterMessage,
-      });
+      );
       toast.success("পাল্টা অফার পাঠানো হয়েছে");
       setCounterDialogOffer(null);
     } catch {
@@ -585,16 +580,15 @@ export function ListingDetailPage() {
               <Button
                 onClick={handleSubmitOffer}
                 data-ocid="listing.offer.submit_button"
-                disabled={submitOfferMut.isPending}
                 className="w-full bg-primary hover:bg-primary/90 shadow-green"
               >
                 <Send className="w-4 h-4 mr-2" />
-                {submitOfferMut.isPending ? "পাঠানো হচ্ছে..." : "অফার পাঠান"}
+                অফার পাঠান
               </Button>
             </div>
 
             {/* Offer history */}
-            {offers && offers.length > 0 && (
+            {offers.length > 0 && (
               <div className="border-t border-border pt-4">
                 <h3 className="text-sm font-semibold text-foreground mb-3">
                   অফারের ইতিহাস
@@ -776,7 +770,6 @@ export function ListingDetailPage() {
             </Button>
             <Button
               onClick={handleCounterOffer}
-              disabled={counterOfferMut.isPending}
               data-ocid="listing.confirm_button"
             >
               পাল্টা অফার পাঠান

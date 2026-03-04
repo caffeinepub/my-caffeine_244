@@ -31,7 +31,9 @@ import {
   useLocalLawyers,
   useLocalListings,
   useLocalNews,
+  useLocalRegistrations,
 } from "@/hooks/useLocalStore";
+import type { RegisteredUser } from "@/hooks/useLocalStore";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import type { SiteSettings } from "@/hooks/useSiteSettings";
 import {
@@ -39,7 +41,13 @@ import {
   getDistrictsForDivision,
   getUpazilasForDistrict,
 } from "@/utils/bangladeshData";
-import { formatBDT, getLandTypeLabel, getStatusLabel } from "@/utils/format";
+import {
+  formatArea,
+  formatBDT,
+  getLandTypeLabel,
+  getRoadAccessLabel,
+  getStatusLabel,
+} from "@/utils/format";
 
 import type React from "react";
 
@@ -47,6 +55,8 @@ import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
   ArrowRight,
+  BarChart2,
+  Building2,
   Check,
   ChevronRight,
   Eye,
@@ -57,18 +67,23 @@ import {
   LockKeyhole,
   LogOut,
   MapPin,
+  Minus,
   Newspaper,
   Palette,
   Pencil,
+  Phone,
   Plus,
   RotateCcw,
+  Ruler,
   Scale,
   Settings,
   ShieldCheck,
   Star,
   Trash2,
   TrendingUp,
+  UserCheck,
   Users,
+  X,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useRef, useState } from "react";
@@ -3281,6 +3296,7 @@ export function AdminPage() {
   const { listings } = useLocalListings();
   const { lawyers } = useLocalLawyers();
   const { news } = useLocalNews();
+  const { registrations } = useLocalRegistrations();
   const [activeTab, setActiveTab] = useState("listings");
 
   if (!isAdminLoggedIn)
@@ -3316,6 +3332,13 @@ export function AdminPage() {
       icon: TrendingUp,
       color: "bg-emerald-50 text-emerald-700",
       borderColor: "oklch(0.55 0.16 155)",
+    },
+    {
+      label: "নিবন্ধিত ব্যবহারকারী",
+      value: registrations.length,
+      icon: UserCheck,
+      color: "bg-teal-50 text-teal-700",
+      borderColor: "oklch(0.55 0.14 185)",
     },
   ];
 
@@ -3498,7 +3521,7 @@ export function AdminPage() {
           className="mb-6"
         >
           <h3 className="text-sm font-semibold text-foreground mb-3">দ্রুত কাজ</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <button
               type="button"
               onClick={() => setActiveTab("listings")}
@@ -3551,6 +3574,24 @@ export function AdminPage() {
                 </div>
               </div>
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("registrations")}
+              className="flex items-center gap-3 p-3 rounded-xl border border-border bg-white hover:border-teal-300 hover:bg-teal-50/50 transition-all text-left group"
+              data-ocid="admin.quickaction.registrations.button"
+            >
+              <div className="w-9 h-9 rounded-lg bg-teal-100 flex items-center justify-center group-hover:bg-teal-200 transition-colors">
+                <UserCheck className="w-4 h-4 text-teal-600" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-foreground">
+                  রেজিস্ট্রেশন
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {registrations.length} জন নিবন্ধিত
+                </div>
+              </div>
+            </button>
           </div>
         </motion.div>
 
@@ -3579,11 +3620,36 @@ export function AdminPage() {
               <Newspaper className="w-4 h-4" /> সংবাদ
             </TabsTrigger>
             <TabsTrigger
+              value="compare"
+              data-ocid="admin.compare.tab"
+              className="gap-1.5"
+            >
+              <BarChart2 className="w-4 h-4" /> তুলনা করুন
+            </TabsTrigger>
+            <TabsTrigger
               value="settings"
               data-ocid="admin.settings.tab"
               className="gap-1.5"
             >
               <Palette className="w-4 h-4" /> সাইট সেটিংস
+            </TabsTrigger>
+            <TabsTrigger
+              value="registrations"
+              data-ocid="admin.registrations.tab"
+              className="gap-1.5"
+            >
+              <UserCheck className="w-4 h-4" /> রেজিস্ট্রেশন
+              {registrations.length > 0 && (
+                <span
+                  className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{
+                    background: "oklch(0.55 0.14 185 / 0.15)",
+                    color: "oklch(0.40 0.12 185)",
+                  }}
+                >
+                  {registrations.length}
+                </span>
+              )}
             </TabsTrigger>
             <TabsTrigger
               value="account"
@@ -3603,6 +3669,12 @@ export function AdminPage() {
           <TabsContent value="news">
             <NewsManagement />
           </TabsContent>
+          <TabsContent value="compare">
+            <CompareManagement />
+          </TabsContent>
+          <TabsContent value="registrations">
+            <RegistrationsManagement />
+          </TabsContent>
           <TabsContent value="settings">
             <SiteSettingsManagement />
           </TabsContent>
@@ -3611,6 +3683,737 @@ export function AdminPage() {
           </TabsContent>
         </Tabs>
       </div>
+    </div>
+  );
+}
+
+// ===== REGISTRATIONS MANAGEMENT =====
+function RegistrationsManagement() {
+  const { registrations, removeRegistration } = useLocalRegistrations();
+  const [filterRole, setFilterRole] = useState<"all" | "seller" | "buyer">(
+    "all",
+  );
+  const [search, setSearch] = useState("");
+
+  const filtered = registrations.filter((r) => {
+    const matchRole = filterRole === "all" || r.role === filterRole;
+    const matchSearch =
+      search === "" ||
+      r.name.includes(search) ||
+      r.phone.includes(search) ||
+      r.email.includes(search) ||
+      r.location.includes(search);
+    return matchRole && matchSearch;
+  });
+
+  const sellerCount = registrations.filter((r) => r.role === "seller").length;
+  const buyerCount = registrations.filter((r) => r.role === "buyer").length;
+
+  const formatDate = (iso: string) => {
+    try {
+      return new Date(iso).toLocaleDateString("bn-BD", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    } catch {
+      return iso;
+    }
+  };
+
+  return (
+    <div>
+      {/* Header banner */}
+      <div
+        className="rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.96 0.025 185) 0%, oklch(0.99 0.008 185) 100%)",
+          border: "1px solid oklch(0.88 0.06 185)",
+          borderLeft: "4px solid oklch(0.52 0.14 185)",
+        }}
+        data-ocid="admin.registrations.panel"
+      >
+        <div
+          className="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-10"
+          style={{ background: "oklch(0.52 0.14 185)" }}
+        />
+        <div className="flex items-center gap-4 flex-1 relative z-10">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.50 0.14 185), oklch(0.43 0.12 195))",
+            }}
+          >
+            <UserCheck className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-bold text-foreground">নিবন্ধিত ব্যবহারকারী</h4>
+              <motion.span
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{
+                  duration: 2,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut",
+                }}
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold"
+                style={{
+                  background: "oklch(0.50 0.14 185 / 0.12)",
+                  color: "oklch(0.35 0.10 185)",
+                  border: "1px solid oklch(0.50 0.14 185 / 0.22)",
+                }}
+              >
+                {registrations.length} জন
+              </motion.span>
+            </div>
+            <div className="flex items-center gap-3 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Building2 className="w-3 h-3" /> বিক্রয়দাতা: {sellerCount}
+              </span>
+              <span>·</span>
+              <span className="flex items-center gap-1">
+                <Home className="w-3 h-3" /> ক্রয়গ্রহিতা: {buyerCount}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Registration page link */}
+        <Link
+          to="/register"
+          className="shrink-0 relative z-10 inline-flex items-center gap-2 px-4 py-2 rounded-xl font-semibold text-sm text-white shadow-md transition-opacity hover:opacity-90"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.50 0.14 185), oklch(0.43 0.12 195))",
+          }}
+          data-ocid="admin.registrations.register_link"
+        >
+          <ArrowRight className="w-4 h-4" />
+          রেজিস্ট্রেশন পেজ
+        </Link>
+      </div>
+
+      {/* Filter & Search */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="flex gap-2">
+          {(
+            [
+              { val: "all", label: "সবাই" },
+              { val: "seller", label: "বিক্রয়দাতা" },
+              { val: "buyer", label: "ক্রয়গ্রহিতা" },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.val}
+              type="button"
+              onClick={() => setFilterRole(opt.val)}
+              data-ocid={`admin.registrations.filter.${opt.val}.button`}
+              className="px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all"
+              style={{
+                background:
+                  filterRole === opt.val
+                    ? "oklch(0.50 0.14 185)"
+                    : "oklch(1 0 0)",
+                color:
+                  filterRole === opt.val ? "white" : "oklch(0.45 0.04 240)",
+                borderColor:
+                  filterRole === opt.val
+                    ? "oklch(0.50 0.14 185)"
+                    : "oklch(0.88 0.04 240)",
+              }}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+        <input
+          type="text"
+          placeholder="নাম, ফোন বা এলাকা দিয়ে খুঁজুন..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          data-ocid="admin.registrations.search.input"
+          className="flex-1 h-9 px-3 rounded-lg border text-sm outline-none transition-all"
+          style={{
+            borderColor: "oklch(0.88 0.04 240)",
+            background: "oklch(0.98 0.005 240)",
+          }}
+          onFocus={(e) => {
+            e.currentTarget.style.borderColor = "oklch(0.50 0.14 185)";
+            e.currentTarget.style.boxShadow =
+              "0 0 0 3px oklch(0.50 0.14 185 / 0.12)";
+          }}
+          onBlur={(e) => {
+            e.currentTarget.style.borderColor = "oklch(0.88 0.04 240)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        />
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-xl border border-border overflow-hidden shadow-card">
+        {filtered.length === 0 ? (
+          <div
+            className="text-center py-16 text-muted-foreground"
+            data-ocid="admin.registrations.empty_state"
+          >
+            <UserCheck className="w-12 h-12 mx-auto mb-3 opacity-15" />
+            <p className="font-medium">
+              {registrations.length === 0
+                ? "এখনো কোনো রেজিস্ট্রেশন নেই"
+                : "কোনো ফলাফল পাওয়া যায়নি"}
+            </p>
+            {registrations.length === 0 && (
+              <p className="text-sm mt-1">
+                ব্যবহারকারীরা রেজিস্ট্রেশন করলে এখানে দেখাবে।
+              </p>
+            )}
+          </div>
+        ) : (
+          <Table data-ocid="admin.registrations.table">
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>নাম</TableHead>
+                <TableHead>ভূমিকা</TableHead>
+                <TableHead>মোবাইল</TableHead>
+                <TableHead>ইমেইল</TableHead>
+                <TableHead>এলাকা</TableHead>
+                <TableHead>তারিখ</TableHead>
+                <TableHead>ক্রিয়া</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((r, i) => (
+                <TableRow
+                  key={r.id}
+                  data-ocid={`admin.registrations.row.${i + 1}`}
+                >
+                  <TableCell className="text-muted-foreground text-sm">
+                    {i + 1}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                        style={{
+                          background:
+                            r.role === "seller"
+                              ? "oklch(0.32 0.11 155 / 0.12)"
+                              : "oklch(0.72 0.16 78 / 0.12)",
+                          color:
+                            r.role === "seller"
+                              ? "oklch(0.32 0.11 155)"
+                              : "oklch(0.55 0.14 78)",
+                        }}
+                      >
+                        {r.name.charAt(0)}
+                      </div>
+                      <span className="font-medium text-sm">{r.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge
+                      className="text-xs font-semibold"
+                      style={{
+                        background:
+                          r.role === "seller"
+                            ? "oklch(0.32 0.11 155 / 0.10)"
+                            : "oklch(0.72 0.16 78 / 0.10)",
+                        color:
+                          r.role === "seller"
+                            ? "oklch(0.28 0.10 155)"
+                            : "oklch(0.50 0.14 78)",
+                        border:
+                          r.role === "seller"
+                            ? "1px solid oklch(0.32 0.11 155 / 0.20)"
+                            : "1px solid oklch(0.72 0.16 78 / 0.20)",
+                      }}
+                    >
+                      {r.role === "seller" ? (
+                        <>
+                          <Building2 className="w-3 h-3 inline mr-1" />
+                          বিক্রয়দাতা
+                        </>
+                      ) : (
+                        <>
+                          <Home className="w-3 h-3 inline mr-1" />
+                          ক্রয়গ্রহিতা
+                        </>
+                      )}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-muted-foreground" />
+                      {r.phone}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {r.email || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {r.location || "—"}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground whitespace-nowrap">
+                    {formatDate(r.registeredAt)}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        removeRegistration(r.id);
+                        toast.success("মুছে ফেলা হয়েছে");
+                      }}
+                      data-ocid={`admin.registrations.delete_button.${i + 1}`}
+                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===== COMPARE MANAGEMENT =====
+function CompareManagement() {
+  const { listings } = useLocalListings();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const selectedListings = listings.filter((l) => selectedIds.includes(l.id));
+  const filteredListings = listings.filter(
+    (l) =>
+      !selectedIds.includes(l.id) &&
+      (searchQuery === "" ||
+        l.title.includes(searchQuery) ||
+        l.district.includes(searchQuery) ||
+        l.upazila.includes(searchQuery) ||
+        l.division.includes(searchQuery)),
+  );
+
+  const addListing = (id: string) => {
+    if (selectedIds.length < 3) {
+      setSelectedIds((prev) => [...prev, id]);
+      setSearchQuery("");
+    } else {
+      toast.error("সর্বোচ্চ ৩টি জমি তুলনা করা যাবে");
+    }
+  };
+
+  const removeListing = (id: string) => {
+    setSelectedIds((prev) => prev.filter((x) => x !== id));
+  };
+
+  const compareFields: {
+    label: string;
+    render: (l: import("@/backend.d").LandListing) => React.ReactNode;
+    isNumeric?: boolean;
+    getValue?: (l: import("@/backend.d").LandListing) => number;
+  }[] = [
+    {
+      label: "মূল্য (টাকা)",
+      render: (l) => formatBDT(l.price),
+      isNumeric: true,
+      getValue: (l) => Number(l.price),
+    },
+    {
+      label: "শতাংশ প্রতি দাম",
+      render: (l) => formatBDT(l.pricePerDecimal),
+      isNumeric: true,
+      getValue: (l) => Number(l.pricePerDecimal),
+    },
+    {
+      label: "আয়তন",
+      render: (l) => formatArea(l.area),
+      isNumeric: true,
+      getValue: (l) => l.area,
+    },
+    { label: "জমির ধরন", render: (l) => getLandTypeLabel(l.landType) },
+    { label: "রাস্তার সংযোগ", render: (l) => getRoadAccessLabel(l.roadAccess) },
+    { label: "রাস্তার প্রশস্ততা", render: (l) => l.roadWidth || "—" },
+    { label: "দিকনির্দেশনা", render: (l) => l.orientation || "—" },
+    { label: "বিভাগ", render: (l) => l.division },
+    { label: "জেলা", render: (l) => l.district },
+    { label: "উপজেলা", render: (l) => l.upazila || "—" },
+    {
+      label: "যাচাই",
+      render: (l) =>
+        l.isVerified ? (
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+            <Check className="w-3 h-3" /> যাচাইকৃত
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">যাচাই হয়নি</span>
+        ),
+    },
+    {
+      label: "বৈশিষ্ট্যময়",
+      render: (l) =>
+        l.isFeatured ? (
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+            <Star className="w-3 h-3 fill-current" /> হ্যাঁ
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">না</span>
+        ),
+    },
+    {
+      label: "অবস্থা",
+      render: (l) => getStatusLabel(l.status),
+    },
+  ];
+
+  const maxPrices = selectedListings.reduce<Record<string, number>>(
+    (acc, l) => {
+      acc.price = Math.max(acc.price ?? 0, Number(l.price));
+      acc.pricePerDec = Math.max(
+        acc.pricePerDec ?? 0,
+        Number(l.pricePerDecimal),
+      );
+      acc.area = Math.max(acc.area ?? 0, l.area);
+      return acc;
+    },
+    {},
+  );
+
+  return (
+    <div>
+      {/* Header banner */}
+      <div
+        className="rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.96 0.025 300) 0%, oklch(0.99 0.008 300) 100%)",
+          border: "1px solid oklch(0.88 0.06 300)",
+          borderLeft: "4px solid oklch(0.52 0.14 300)",
+        }}
+        data-ocid="admin.compare.panel"
+      >
+        <div
+          className="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-10"
+          style={{ background: "oklch(0.52 0.14 300)" }}
+        />
+        <div className="flex items-center gap-4 flex-1 relative z-10">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.52 0.14 300), oklch(0.45 0.12 310))",
+            }}
+          >
+            <BarChart2 className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-bold text-foreground">তুলনা সরঞ্জাম</h4>
+              <span
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold"
+                style={{
+                  background: "oklch(0.52 0.14 300 / 0.12)",
+                  color: "oklch(0.38 0.12 300)",
+                  border: "1px solid oklch(0.52 0.14 300 / 0.22)",
+                }}
+              >
+                {selectedIds.length}/3 নির্বাচিত
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              সর্বোচ্চ ৩টি জমির তথ্য পাশাপাশি তুলনা করুন
+            </p>
+          </div>
+        </div>
+        {selectedIds.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setSelectedIds([])}
+            className="shrink-0 text-xs font-medium px-4 py-2 rounded-xl border transition-all relative z-10"
+            style={{
+              borderColor: "oklch(0.52 0.14 300 / 0.30)",
+              color: "oklch(0.38 0.12 300)",
+              background: "oklch(0.52 0.14 300 / 0.06)",
+            }}
+            data-ocid="admin.compare.clear.button"
+          >
+            <X className="w-3.5 h-3.5 inline mr-1" />
+            সব মুছুন
+          </button>
+        )}
+      </div>
+
+      {/* Search & Add */}
+      {selectedIds.length < 3 && (
+        <div
+          className="bg-white border border-border rounded-xl p-5 mb-6 shadow-card"
+          data-ocid="admin.compare.search.panel"
+        >
+          <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2 text-sm">
+            <Plus
+              className="w-4 h-4"
+              style={{ color: "oklch(0.52 0.14 300)" }}
+            />
+            তুলনার জন্য জমি যোগ করুন ({selectedIds.length}/3)
+          </h3>
+          <input
+            type="text"
+            placeholder="জমির নাম, জেলা বা উপজেলা দিয়ে খুঁজুন..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            data-ocid="admin.compare.search.input"
+            className="w-full h-11 px-4 rounded-xl border text-sm outline-none transition-all mb-3"
+            style={{
+              borderColor: "oklch(0.88 0.04 240)",
+              background: "oklch(0.98 0.005 240)",
+            }}
+            onFocus={(e) => {
+              e.currentTarget.style.borderColor = "oklch(0.52 0.14 300)";
+              e.currentTarget.style.boxShadow =
+                "0 0 0 3px oklch(0.52 0.14 300 / 0.12)";
+            }}
+            onBlur={(e) => {
+              e.currentTarget.style.borderColor = "oklch(0.88 0.04 240)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          />
+          {listings.length === 0 ? (
+            <div
+              className="text-center py-8 text-muted-foreground"
+              data-ocid="admin.compare.empty_state"
+            >
+              <BarChart2 className="w-10 h-10 mx-auto mb-2 opacity-20" />
+              <p className="text-sm">
+                কোনো লিস্টিং নেই। প্রথমে লিস্টিং ট্যাব থেকে জমি যোগ করুন।
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-52 overflow-y-auto space-y-1.5">
+              {(searchQuery
+                ? filteredListings
+                : listings.filter((l) => !selectedIds.includes(l.id))
+              )
+                .slice(0, 10)
+                .map((l) => (
+                  <button
+                    type="button"
+                    key={l.id}
+                    onClick={() => addListing(l.id)}
+                    data-ocid="admin.compare.add.button"
+                    className="w-full flex items-center justify-between p-3 rounded-xl border border-border hover:border-purple-300 hover:bg-purple-50/40 transition-all text-left text-sm group"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 text-base"
+                        style={{ background: "oklch(0.95 0.02 300)" }}
+                      >
+                        {l.landType === "vita"
+                          ? "🏡"
+                          : l.landType === "nala"
+                            ? "💧"
+                            : "🌾"}
+                      </div>
+                      <div>
+                        <div className="font-medium text-foreground line-clamp-1">
+                          {l.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {l.district} · {formatBDT(l.price)}
+                        </div>
+                      </div>
+                    </div>
+                    <Plus
+                      className="w-4 h-4 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                      style={{ color: "oklch(0.52 0.14 300)" }}
+                    />
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Comparison Table */}
+      {selectedListings.length === 0 ? (
+        <div
+          className="text-center py-20 text-muted-foreground bg-white rounded-xl border border-border"
+          data-ocid="admin.compare.table.empty_state"
+        >
+          <BarChart2 className="w-12 h-12 mx-auto mb-4 opacity-15" />
+          <p className="text-lg font-medium">কোনো জমি নির্বাচন করা হয়নি</p>
+          <p className="text-sm mt-2">উপরে জমি খুঁজে তুলনার জন্য যোগ করুন</p>
+        </div>
+      ) : (
+        <div
+          className="bg-white rounded-xl border border-border shadow-card overflow-hidden"
+          data-ocid="admin.compare.table"
+        >
+          <div className="overflow-x-auto">
+            <div className="min-w-[600px] p-4">
+              {/* Header row — listing cards */}
+              <div
+                className="grid gap-3 mb-4"
+                style={{
+                  gridTemplateColumns: `180px repeat(${selectedListings.length}, 1fr)`,
+                }}
+              >
+                <div />
+                {selectedListings.map((l) => (
+                  <div
+                    key={l.id}
+                    className="rounded-xl border border-border p-3 relative"
+                    style={{ borderTop: "3px solid oklch(0.52 0.14 300)" }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => removeListing(l.id)}
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-muted hover:bg-destructive/10 hover:text-destructive flex items-center justify-center transition-colors"
+                      data-ocid="admin.compare.remove.button"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="h-16 bg-gradient-to-br from-purple-50 to-purple-100/40 rounded-lg mb-2 flex items-center justify-center text-3xl">
+                      {l.landType === "vita"
+                        ? "🏡"
+                        : l.landType === "nala"
+                          ? "💧"
+                          : "🌾"}
+                    </div>
+                    <h3 className="font-bold text-foreground text-xs leading-snug mb-1 line-clamp-2 pr-4">
+                      {l.title}
+                    </h3>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      {l.district}
+                    </div>
+                    <div
+                      className="mt-1.5 text-sm font-bold"
+                      style={{ color: "oklch(0.38 0.14 240)" }}
+                    >
+                      {formatBDT(l.price)}
+                    </div>
+                  </div>
+                ))}
+                {/* Empty slots */}
+                {Array.from({ length: 3 - selectedIds.length }).map((_, i) => (
+                  <button
+                    // biome-ignore lint/suspicious/noArrayIndexKey: slot
+                    key={`empty-${i}`}
+                    type="button"
+                    onClick={() => {}}
+                    className="border-2 border-dashed border-border rounded-xl h-40 flex items-center justify-center text-muted-foreground cursor-pointer hover:border-purple-300 hover:text-purple-400 transition-colors"
+                    data-ocid="admin.compare.empty_slot.button"
+                  >
+                    <div className="text-center">
+                      <Plus className="w-5 h-5 mx-auto mb-1" />
+                      <span className="text-xs">জমি যোগ করুন</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+
+              {/* Price progress bar */}
+              <div
+                className="grid gap-3 mb-1 pb-2 border-b border-border"
+                style={{
+                  gridTemplateColumns: `180px repeat(${selectedListings.length}, 1fr)`,
+                }}
+              >
+                <div className="flex items-center text-xs font-semibold text-muted-foreground gap-1">
+                  <Ruler className="w-3.5 h-3.5" /> মূল্য তুলনা বার
+                </div>
+                {selectedListings.map((l) => (
+                  <div key={l.id} className="flex items-center gap-2">
+                    <div className="flex-1 bg-muted rounded-full h-2">
+                      <div
+                        className="h-2 rounded-full transition-all"
+                        style={{
+                          width:
+                            maxPrices.price > 0
+                              ? `${(Number(l.price) / maxPrices.price) * 100}%`
+                              : "0%",
+                          background:
+                            "linear-gradient(90deg, oklch(0.52 0.14 300), oklch(0.45 0.12 310))",
+                        }}
+                      />
+                    </div>
+                    <span className="text-xs text-muted-foreground w-12 text-right shrink-0">
+                      {maxPrices.price > 0
+                        ? `${Math.round((Number(l.price) / maxPrices.price) * 100)}%`
+                        : "—"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Data rows */}
+              {compareFields.map((field, rowIdx) => (
+                <div
+                  key={field.label}
+                  className={`grid gap-3 py-2.5 border-b border-border/60 last:border-0 rounded-lg px-1.5 ${
+                    rowIdx % 2 === 0 ? "bg-muted/20" : ""
+                  }`}
+                  style={{
+                    gridTemplateColumns: `180px repeat(${selectedListings.length}, 1fr)`,
+                  }}
+                >
+                  <div className="flex items-center text-xs font-semibold text-muted-foreground">
+                    {field.label}
+                  </div>
+                  {selectedListings.map((l) => {
+                    const isMin =
+                      field.isNumeric &&
+                      field.getValue &&
+                      selectedListings.length > 1 &&
+                      field.getValue(l) ===
+                        Math.min(...selectedListings.map(field.getValue!));
+                    return (
+                      <div
+                        key={l.id}
+                        className={`text-sm flex items-center gap-1 ${
+                          isMin
+                            ? "text-emerald-600 font-semibold"
+                            : "text-foreground"
+                        }`}
+                      >
+                        {isMin && (
+                          <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                        )}
+                        {field.render(l)}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Summary footer */}
+          {selectedListings.length > 1 && (
+            <div
+              className="px-5 py-3 flex items-center gap-2"
+              style={{
+                background: "oklch(0.97 0.01 300)",
+                borderTop: "1px solid oklch(0.91 0.04 300)",
+              }}
+            >
+              <Check
+                className="w-4 h-4"
+                style={{ color: "oklch(0.52 0.14 300)" }}
+              />
+              <span className="text-xs text-muted-foreground">
+                সবুজ রঙে চিহ্নিত মান সর্বনিম্ন মূল্য বা সর্বোচ্চ আয়তন নির্দেশ করছে
+              </span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

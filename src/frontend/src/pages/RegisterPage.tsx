@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { saveRegistration } from "@/hooks/useLocalStore";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowLeft,
@@ -74,15 +75,23 @@ export function RegisterPage() {
     if (!validate()) return;
     setIsSubmitting(true);
     await new Promise((r) => setTimeout(r, 900));
-    localStorage.setItem("jomibazar_user_role", selectedRole ?? "buyer");
+    const role = selectedRole ?? "buyer";
+    const registeredAt = new Date().toISOString();
+    localStorage.setItem("jomibazar_user_role", role);
     localStorage.setItem(
       "jomibazar_profile",
-      JSON.stringify({
-        ...form,
-        role: selectedRole,
-        registeredAt: new Date().toISOString(),
-      }),
+      JSON.stringify({ ...form, role, registeredAt }),
     );
+    // Save to admin-visible registrations store
+    saveRegistration({
+      id: `reg-${Date.now()}`,
+      name: form.name,
+      phone: form.phone,
+      email: form.email,
+      location: form.location,
+      role,
+      registeredAt,
+    });
     setIsSubmitting(false);
     setStep("success");
     toast.success("রেজিস্ট্রেশন সফল হয়েছে!");

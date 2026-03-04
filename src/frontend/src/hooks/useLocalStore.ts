@@ -209,6 +209,73 @@ export function useLocalNews() {
   return { news: items, create, update, remove };
 }
 
+// ─── Offers ───────────────────────────────────────────────────────────────────
+import type { Offer } from "../backend.d";
+
+const OFFER_KEY = "jomibazar_offers";
+
+export function useLocalOffers(listingId?: string) {
+  const [allOffers, setAllOffers] = useState<Offer[]>(() =>
+    readStore<Offer>(OFFER_KEY),
+  );
+
+  const refresh = useCallback(() => {
+    setAllOffers(readStore<Offer>(OFFER_KEY));
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener(STORE_CHANGE_EVENT, refresh);
+    return () => window.removeEventListener(STORE_CHANGE_EVENT, refresh);
+  }, [refresh]);
+
+  const offers = listingId
+    ? allOffers.filter((o) => o.listingId === listingId)
+    : allOffers;
+
+  const submitOffer = useCallback((offer: Offer) => {
+    const current = readStore<Offer>(OFFER_KEY);
+    const updated = [...current, offer];
+    writeStore(OFFER_KEY, updated);
+    setAllOffers(updated);
+    notifyChange();
+  }, []);
+
+  const updateOfferStatus = useCallback((id: string, status: string) => {
+    const current = readStore<Offer>(OFFER_KEY);
+    const updated = current.map((o) =>
+      o.id === id
+        ? { ...o, status, updatedAt: BigInt(Date.now() * 1_000_000) }
+        : o,
+    );
+    writeStore(OFFER_KEY, updated);
+    setAllOffers(updated);
+    notifyChange();
+  }, []);
+
+  const counterOffer = useCallback(
+    (id: string, counterPrice: bigint, counterMessage: string) => {
+      const current = readStore<Offer>(OFFER_KEY);
+      const updated = current.map((o) =>
+        o.id === id
+          ? {
+              ...o,
+              counterPrice,
+              counterMessage,
+              status: "countered",
+              updatedAt: BigInt(Date.now() * 1_000_000),
+            }
+          : o,
+      );
+      writeStore(OFFER_KEY, updated);
+      setAllOffers(updated);
+      notifyChange();
+    },
+    [],
+  );
+
+  return { offers, submitOffer, updateOfferStatus, counterOffer };
+}
+
 // ─── Read-only helpers (no hooks, safe to call anywhere) ─────────────────────
 export function getLocalListings(): LandListing[] {
   ensureSeeded();
@@ -223,4 +290,71 @@ export function getLocalLawyers(): Lawyer[] {
 export function getLocalNews(): NewsArticle[] {
   ensureSeeded();
   return readStore<NewsArticle>(KEYS.news);
+}
+
+// ─── Registrations ────────────────────────────────────────────────────────────
+export interface RegisteredUser {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  location: string;
+  role: "seller" | "buyer";
+  registeredAt: string;
+}
+
+const REG_KEY = "jomibazar_registrations";
+
+export function useLocalRegistrations() {
+  const [items, setItems] = useState<RegisteredUser[]>(() =>
+    readStore<RegisteredUser>(REG_KEY),
+  );
+
+  const refresh = useCallback(() => {
+    setItems(readStore<RegisteredUser>(REG_KEY));
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener(STORE_CHANGE_EVENT, refresh);
+    return () => window.removeEventListener(STORE_CHANGE_EVENT, refresh);
+  }, [refresh]);
+
+  const addRegistration = useCallback((user: RegisteredUser) => {
+    const current = readStore<RegisteredUser>(REG_KEY);
+    // avoid duplicate by phone
+    const exists = current.some((u) => u.phone === user.phone);
+    if (exists) {
+      // update existing
+      const updated = current.map((u) => (u.phone === user.phone ? user : u));
+      writeStore(REG_KEY, updated);
+      setItems(updated);
+    } else {
+      const updated = [...current, user];
+      writeStore(REG_KEY, updated);
+      setItems(updated);
+    }
+    notifyChange();
+  }, []);
+
+  const removeRegistration = useCallback((id: string) => {
+    const current = readStore<RegisteredUser>(REG_KEY);
+    const updated = current.filter((u) => u.id !== id);
+    writeStore(REG_KEY, updated);
+    setItems(updated);
+    notifyChange();
+  }, []);
+
+  return { registrations: items, addRegistration, removeRegistration };
+}
+
+export function saveRegistration(user: RegisteredUser) {
+  const current = readStore<RegisteredUser>(REG_KEY);
+  const exists = current.some((u) => u.phone === user.phone);
+  if (exists) {
+    const updated = current.map((u) => (u.phone === user.phone ? user : u));
+    writeStore(REG_KEY, updated);
+  } else {
+    writeStore(REG_KEY, [...current, user]);
+  }
+  window.dispatchEvent(new Event(STORE_CHANGE_EVENT));
 }
