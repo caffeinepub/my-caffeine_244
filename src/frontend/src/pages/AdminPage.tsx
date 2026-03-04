@@ -3985,9 +3985,24 @@ function RegistrationsManagement() {
 
 // ===== COMPARE MANAGEMENT =====
 function CompareManagement() {
-  const { listings } = useLocalListings();
+  const { listings, update } = useLocalListings();
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [_editListing, setEditListing] = useState<
+    import("@/backend.d").LandListing | null
+  >(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editForm, setEditForm] = useState<
+    import("@/backend.d").LandListing | null
+  >(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const editAvailableDistricts = editForm?.division
+    ? getDistrictsForDivision(editForm.division)
+    : [];
+  const editAvailableUpazilas = editForm?.district
+    ? getUpazilasForDistrict(editForm.district)
+    : [];
 
   const selectedListings = listings.filter((l) => selectedIds.includes(l.id));
   const filteredListings = listings.filter(
@@ -4011,6 +4026,33 @@ function CompareManagement() {
 
   const removeListing = (id: string) => {
     setSelectedIds((prev) => prev.filter((x) => x !== id));
+  };
+
+  const openEdit = (l: import("@/backend.d").LandListing) => {
+    setEditListing(l);
+    setEditForm({ ...l });
+    setShowEditDialog(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editForm || !editForm.title || !editForm.district) {
+      toast.error("শিরোনাম ও জেলা আবশ্যক");
+      return;
+    }
+    setIsSaving(true);
+    await new Promise((r) => setTimeout(r, 200));
+    try {
+      update({ ...editForm, updatedAt: BigInt(Date.now() * 1_000_000) });
+      toast.success("লিস্টিং আপডেট হয়েছে");
+      setShowEditDialog(false);
+      setEditListing(null);
+      setEditForm(null);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      toast.error(`সংরক্ষণ ব্যর্থ: ${msg}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const compareFields: {
@@ -4264,17 +4306,19 @@ function CompareManagement() {
                 }}
               >
                 <div />
-                {selectedListings.map((l) => (
+                {selectedListings.map((l, idx) => (
                   <div
                     key={l.id}
                     className="rounded-xl border border-border p-3 relative"
                     style={{ borderTop: "3px solid oklch(0.52 0.14 300)" }}
                   >
+                    {/* Remove button */}
                     <button
                       type="button"
                       onClick={() => removeListing(l.id)}
                       className="absolute top-2 right-2 w-6 h-6 rounded-full bg-muted hover:bg-destructive/10 hover:text-destructive flex items-center justify-center transition-colors"
                       data-ocid="admin.compare.remove.button"
+                      title="তালিকা থেকে সরান"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -4298,6 +4342,33 @@ function CompareManagement() {
                     >
                       {formatBDT(l.price)}
                     </div>
+                    {/* Edit button */}
+                    <button
+                      type="button"
+                      onClick={() => openEdit(l)}
+                      data-ocid={`admin.compare.edit_button.${idx + 1}`}
+                      className="mt-2 w-full flex items-center justify-center gap-1.5 text-xs font-semibold py-1.5 rounded-lg border transition-all"
+                      style={{
+                        borderColor: "oklch(0.52 0.14 300 / 0.35)",
+                        color: "oklch(0.38 0.12 300)",
+                        background: "oklch(0.52 0.14 300 / 0.06)",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background =
+                          "oklch(0.52 0.14 300 / 0.14)";
+                        e.currentTarget.style.borderColor =
+                          "oklch(0.52 0.14 300 / 0.55)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background =
+                          "oklch(0.52 0.14 300 / 0.06)";
+                        e.currentTarget.style.borderColor =
+                          "oklch(0.52 0.14 300 / 0.35)";
+                      }}
+                    >
+                      <Pencil className="w-3 h-3" />
+                      সংশোধন করুন
+                    </button>
                   </div>
                 ))}
                 {/* Empty slots */}
@@ -4414,6 +4485,378 @@ function CompareManagement() {
           )}
         </div>
       )}
+
+      {/* ── Edit Dialog for Compare ── */}
+      <Dialog
+        open={showEditDialog}
+        onOpenChange={(open) => {
+          setShowEditDialog(open);
+          if (!open) {
+            setEditListing(null);
+            setEditForm(null);
+          }
+        }}
+      >
+        <DialogContent
+          className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl"
+          data-ocid="admin.compare.edit.dialog"
+        >
+          {editForm && (
+            <FormDialogShell
+              title="লিস্টিং সংশোধন করুন"
+              icon={Pencil}
+              gradientFrom="oklch(0.52 0.14 300)"
+              gradientTo="oklch(0.42 0.12 310)"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <FormSection label="মূল তথ্য" color="oklch(0.52 0.14 300)" />
+
+                <div className="col-span-2 space-y-1.5">
+                  <FormLabel required>শিরোনাম</FormLabel>
+                  <Input
+                    value={editForm.title}
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p ? { ...p, title: e.target.value } : p,
+                      )
+                    }
+                    placeholder="জমির শিরোনাম লিখুন"
+                    className="h-11 rounded-xl border-border/70"
+                  />
+                </div>
+                <div className="col-span-2 space-y-1.5">
+                  <FormLabel>বিবরণ</FormLabel>
+                  <Textarea
+                    value={editForm.description}
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p ? { ...p, description: e.target.value } : p,
+                      )
+                    }
+                    rows={3}
+                    className="resize-none rounded-xl border-border/70"
+                    placeholder="জমির বিস্তারিত বিবরণ লিখুন"
+                  />
+                </div>
+
+                <FormSection label="অবস্থান" color="oklch(0.52 0.14 300)" />
+
+                <div className="space-y-1.5">
+                  <FormLabel required>বিভাগ</FormLabel>
+                  <Select
+                    value={editForm.division}
+                    onValueChange={(v) =>
+                      setEditForm((p) =>
+                        p
+                          ? { ...p, division: v, district: "", upazila: "" }
+                          : p,
+                      )
+                    }
+                  >
+                    <SelectTrigger className="h-11 rounded-xl border-border/70">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {BD_DIVISIONS.map((d) => (
+                        <SelectItem key={d} value={d}>
+                          {d}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <FormLabel required>জেলা</FormLabel>
+                  <Select
+                    value={editForm.district}
+                    onValueChange={(v) =>
+                      setEditForm((p) =>
+                        p ? { ...p, district: v, upazila: "" } : p,
+                      )
+                    }
+                    disabled={editAvailableDistricts.length === 0}
+                  >
+                    <SelectTrigger className="h-11 rounded-xl border-border/70">
+                      <SelectValue placeholder="জেলা বেছে নিন" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editAvailableDistricts.map((d) => (
+                        <SelectItem key={d} value={d}>
+                          {d}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <FormLabel>উপজেলা</FormLabel>
+                  <Select
+                    value={editForm.upazila}
+                    onValueChange={(v) =>
+                      setEditForm((p) => (p ? { ...p, upazila: v } : p))
+                    }
+                    disabled={editAvailableUpazilas.length === 0}
+                  >
+                    <SelectTrigger className="h-11 rounded-xl border-border/70">
+                      <SelectValue placeholder="উপজেলা বেছে নিন" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {editAvailableUpazilas.map((u) => (
+                        <SelectItem key={u} value={u}>
+                          {u}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <FormLabel>ঠিকানা</FormLabel>
+                  <Input
+                    value={editForm.address}
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p ? { ...p, address: e.target.value } : p,
+                      )
+                    }
+                    placeholder="গ্রাম/মহল্লা/রাস্তা"
+                    className="h-11 rounded-xl border-border/70"
+                  />
+                </div>
+
+                <FormSection label="মূল্য ও আয়তন" color="oklch(0.52 0.14 300)" />
+
+                <div className="space-y-1.5">
+                  <FormLabel required>মোট মূল্য (টাকা)</FormLabel>
+                  <Input
+                    type="number"
+                    value={editForm.price ? Number(editForm.price) : ""}
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p ? { ...p, price: BigInt(e.target.value || 0) } : p,
+                      )
+                    }
+                    placeholder="মোট মূল্য"
+                    className="h-11 rounded-xl border-border/70"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FormLabel>শতাংশ প্রতি দাম</FormLabel>
+                  <Input
+                    type="number"
+                    value={
+                      editForm.pricePerDecimal
+                        ? Number(editForm.pricePerDecimal)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p
+                          ? {
+                              ...p,
+                              pricePerDecimal: BigInt(e.target.value || 0),
+                            }
+                          : p,
+                      )
+                    }
+                    placeholder="প্রতি শতাংশ মূল্য"
+                    className="h-11 rounded-xl border-border/70"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FormLabel required>আয়তন (শতাংশ)</FormLabel>
+                  <Input
+                    type="number"
+                    value={editForm.area || ""}
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p ? { ...p, area: Number(e.target.value) } : p,
+                      )
+                    }
+                    placeholder="আয়তন"
+                    className="h-11 rounded-xl border-border/70"
+                  />
+                </div>
+
+                <FormSection
+                  label="জমির বৈশিষ্ট্য"
+                  color="oklch(0.52 0.14 300)"
+                />
+
+                <div className="space-y-1.5">
+                  <FormLabel>জমির ধরন</FormLabel>
+                  <Select
+                    value={editForm.landType}
+                    onValueChange={(v) =>
+                      setEditForm((p) => (p ? { ...p, landType: v } : p))
+                    }
+                  >
+                    <SelectTrigger className="h-11 rounded-xl border-border/70">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vita">উঁচু (ভিটা)</SelectItem>
+                      <SelectItem value="nala">নিচু (নালা)</SelectItem>
+                      <SelectItem value="flat">সমতল</SelectItem>
+                      <SelectItem value="agricultural">কৃষি</SelectItem>
+                      <SelectItem value="commercial">বাণিজ্যিক</SelectItem>
+                      <SelectItem value="industrial">শিল্প</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <FormLabel>রাস্তার সংযোগ</FormLabel>
+                  <Select
+                    value={editForm.roadAccess}
+                    onValueChange={(v) =>
+                      setEditForm((p) => (p ? { ...p, roadAccess: v } : p))
+                    }
+                  >
+                    <SelectTrigger className="h-11 rounded-xl border-border/70">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="paved">পিচ ঢালাই</SelectItem>
+                      <SelectItem value="brick">ইটের রাস্তা</SelectItem>
+                      <SelectItem value="mud">মাটির রাস্তা</SelectItem>
+                      <SelectItem value="none">নেই</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <FormLabel>রাস্তার প্রশস্ততা</FormLabel>
+                  <Input
+                    value={editForm.roadWidth}
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p ? { ...p, roadWidth: e.target.value } : p,
+                      )
+                    }
+                    placeholder="যেমন: ১২ ফুট"
+                    className="h-11 rounded-xl border-border/70"
+                  />
+                </div>
+
+                <FormSection label="বিক্রেতার তথ্য" color="oklch(0.52 0.14 300)" />
+
+                <div className="space-y-1.5">
+                  <FormLabel>বিক্রেতার নাম</FormLabel>
+                  <Input
+                    value={editForm.sellerName}
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p ? { ...p, sellerName: e.target.value } : p,
+                      )
+                    }
+                    placeholder="বিক্রেতার নাম"
+                    className="h-11 rounded-xl border-border/70"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FormLabel>ফোন নম্বর</FormLabel>
+                  <Input
+                    value={editForm.sellerPhone}
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p ? { ...p, sellerPhone: e.target.value } : p,
+                      )
+                    }
+                    placeholder="01XXXXXXXXX"
+                    className="h-11 rounded-xl border-border/70"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <FormLabel>হোয়াটসঅ্যাপ</FormLabel>
+                  <Input
+                    value={editForm.sellerWhatsapp}
+                    onChange={(e) =>
+                      setEditForm((p) =>
+                        p ? { ...p, sellerWhatsapp: e.target.value } : p,
+                      )
+                    }
+                    placeholder="WhatsApp নম্বর"
+                    className="h-11 rounded-xl border-border/70"
+                  />
+                </div>
+
+                <FormSection label="অবস্থা" color="oklch(0.52 0.14 300)" />
+
+                <div className="space-y-1.5">
+                  <FormLabel>বিজ্ঞাপন অবস্থা</FormLabel>
+                  <Select
+                    value={editForm.status}
+                    onValueChange={(v) =>
+                      setEditForm((p) => (p ? { ...p, status: v } : p))
+                    }
+                  >
+                    <SelectTrigger className="h-11 rounded-xl border-border/70">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">সক্রিয়</SelectItem>
+                      <SelectItem value="sold">বিক্রিত</SelectItem>
+                      <SelectItem value="pending">অপেক্ষমাণ</SelectItem>
+                      <SelectItem value="inactive">নিষ্ক্রিয়</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5 flex flex-col justify-end">
+                  <div className="flex items-center gap-3 h-11 px-3 rounded-xl border border-border/70 bg-background">
+                    <Switch
+                      checked={editForm.isFeatured}
+                      onCheckedChange={(checked) =>
+                        setEditForm((p) =>
+                          p ? { ...p, isFeatured: checked } : p,
+                        )
+                      }
+                      data-ocid="admin.compare.edit.featured.switch"
+                    />
+                    <span className="text-sm">বৈশিষ্ট্যময় লিস্টিং</span>
+                  </div>
+                </div>
+              </div>
+
+              <DialogFooter className="mt-6 gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditDialog(false);
+                    setEditListing(null);
+                    setEditForm(null);
+                  }}
+                  className="rounded-xl"
+                  data-ocid="admin.compare.edit.cancel_button"
+                >
+                  বাতিল
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleEditSave}
+                  disabled={isSaving}
+                  className="rounded-xl font-bold text-white gap-2"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, oklch(0.52 0.14 300), oklch(0.42 0.12 310))",
+                  }}
+                  data-ocid="admin.compare.edit.save_button"
+                >
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      সংরক্ষণ হচ্ছে...
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-4 h-4" />
+                      পরিবর্তন সংরক্ষণ করুন
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </FormDialogShell>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
