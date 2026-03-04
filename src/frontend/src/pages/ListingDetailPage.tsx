@@ -1,4 +1,4 @@
-import type { DocumentAccessRequest, Offer } from "@/backend.d";
+import type { DocumentAccessRequest, LandListing, Offer } from "@/backend.d";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useInternetIdentity } from "@/hooks/useInternetIdentity";
 import { useLocalListings, useLocalOffers } from "@/hooks/useLocalStore";
 import {
@@ -35,6 +41,7 @@ import {
   ChevronRight,
   Circle,
   Compass,
+  Download,
   Droplets,
   FileSearch,
   FileText,
@@ -43,16 +50,178 @@ import {
   MapPin,
   MessageCircle,
   Phone,
+  Printer,
   Route,
   Ruler,
   Send,
   ShieldCheck,
   Star,
   Unlock,
+  X,
+  ZoomIn,
 } from "lucide-react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+
+// Extended listing type with images
+type ListingWithImages = LandListing & { images?: string[] };
+
+// ─── Image Gallery Component ─────────────────────────────────────────────────
+function ListingImageGallery({ listing }: { listing: ListingWithImages }) {
+  const images = listing.images ?? [];
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  if (images.length === 0) {
+    // Fallback placeholder
+    return (
+      <div className="h-72 md:h-96 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl mb-8 flex items-center justify-center relative overflow-hidden">
+        <div className="text-8xl opacity-20">
+          {listing.landType === "vita"
+            ? "🏡"
+            : listing.landType === "nala"
+              ? "💧"
+              : "🌾"}
+        </div>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
+        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+          {listing.isFeatured && (
+            <Badge className="gold-badge flex items-center gap-1">
+              <Star className="w-3 h-3 fill-current" /> বৈশিষ্ট্যময়
+            </Badge>
+          )}
+          {listing.isVerified && (
+            <Badge className="verified-badge flex items-center gap-1">
+              <ShieldCheck className="w-3 h-3" /> যাচাইকৃত
+            </Badge>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div
+        data-ocid="listing.image.panel"
+        className="mb-8 rounded-2xl overflow-hidden"
+        style={{ border: "1px solid oklch(0.88 0.015 145)" }}
+      >
+        {/* Hero image — use button element for a11y */}
+        <button
+          type="button"
+          className="relative h-72 md:h-96 bg-muted cursor-zoom-in group w-full text-left p-0 border-0"
+          onClick={() => setLightboxOpen(true)}
+          aria-label="ছবি বড় করে দেখুন"
+          style={{ display: "block" }}
+        >
+          <img
+            src={images[activeIdx]}
+            alt={`${listing.title} — ছবি ${activeIdx + 1}`}
+            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+          />
+          {/* Gradient overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
+
+          {/* Badges */}
+          <div className="absolute top-4 left-4 flex flex-wrap gap-2">
+            {listing.isFeatured && (
+              <Badge className="gold-badge flex items-center gap-1">
+                <Star className="w-3 h-3 fill-current" /> বৈশিষ্ট্যময়
+              </Badge>
+            )}
+            {listing.isVerified && (
+              <Badge className="verified-badge flex items-center gap-1">
+                <ShieldCheck className="w-3 h-3" /> যাচাইকৃত
+              </Badge>
+            )}
+          </div>
+
+          {/* Image counter badge */}
+          <div
+            className="absolute top-4 right-4 px-2.5 py-1 rounded-full text-xs font-bold text-white backdrop-blur-sm"
+            style={{ background: "oklch(0.12 0.06 155 / 0.75)" }}
+          >
+            {activeIdx + 1}/{images.length}
+          </div>
+
+          {/* Zoom hint */}
+          <div
+            className="absolute bottom-4 right-4 w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ background: "oklch(1 0 0 / 0.85)" }}
+          >
+            <ZoomIn className="w-4 h-4 text-foreground" />
+          </div>
+        </button>
+
+        {/* Thumbnail strip */}
+        {images.length > 1 && (
+          <div
+            className="flex gap-2 p-3 overflow-x-auto"
+            style={{ background: "oklch(0.97 0.005 145)" }}
+          >
+            {images.map((src, idx) => (
+              <button
+                // biome-ignore lint/suspicious/noArrayIndexKey: thumbnail strip position is stable
+                key={idx}
+                type="button"
+                onClick={() => setActiveIdx(idx)}
+                className="flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden transition-all duration-200"
+                style={{
+                  border:
+                    activeIdx === idx
+                      ? "2px solid oklch(0.32 0.11 155)"
+                      : "2px solid transparent",
+                  opacity: activeIdx === idx ? 1 : 0.65,
+                }}
+                aria-label={`ছবি ${idx + 1} দেখুন`}
+              >
+                <img
+                  src={src}
+                  alt={`থাম্বনেইল ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightboxOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/90 p-4"
+            onClick={() => setLightboxOpen(false)}
+          >
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              src={images[activeIdx]}
+              alt={`${listing.title} — বড় ছবি`}
+              className="max-w-full max-h-full rounded-xl object-contain"
+              style={{ maxHeight: "90vh", maxWidth: "90vw" }}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <button
+              type="button"
+              onClick={() => setLightboxOpen(false)}
+              className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+              aria-label="বন্ধ করুন"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  );
+}
 
 const legalChecklist = [
   { id: 1, label: "CS/SA পর্চা মিলানো হয়েছে?" },
@@ -197,44 +366,62 @@ export function ListingDetailPage() {
       data-ocid="listing.detail.panel"
       className="container max-w-6xl mx-auto px-4 py-8"
     >
-      {/* Breadcrumb */}
-      <div className="flex items-center gap-1.5 text-sm text-muted-foreground mb-6">
-        <Link to="/" className="hover:text-primary transition-colors">
-          হোম
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <Link to="/listings" className="hover:text-primary transition-colors">
-          জমির তালিকা
-        </Link>
-        <ChevronRight className="w-3.5 h-3.5" />
-        <span className="text-foreground truncate max-w-48">
-          {listing.title}
-        </span>
+      {/* Breadcrumb + Print/PDF buttons */}
+      <div
+        className="flex items-center justify-between gap-2 mb-6 flex-wrap"
+        data-print-hide
+      >
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Link to="/" className="hover:text-primary transition-colors">
+            হোম
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5" />
+          <Link to="/listings" className="hover:text-primary transition-colors">
+            জমির তালিকা
+          </Link>
+          <ChevronRight className="w-3.5 h-3.5" />
+          <span className="text-foreground truncate max-w-48">
+            {listing.title}
+          </span>
+        </div>
+        <TooltipProvider>
+          <div className="flex items-center gap-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={() => window.print()}
+                  data-ocid="listing.print.button"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  প্রিন্ট করুন
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>এই জমির তথ্য প্রিন্ট করুন</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  onClick={() => window.print()}
+                  data-ocid="listing.pdf.button"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  PDF ডাউনলোড
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>PDF হিসেবে সংরক্ষণ করুন</TooltipContent>
+            </Tooltip>
+          </div>
+        </TooltipProvider>
       </div>
 
-      {/* Image gallery placeholder */}
-      <div className="h-72 md:h-96 bg-gradient-to-br from-primary/20 to-primary/5 rounded-2xl mb-8 flex items-center justify-center relative overflow-hidden">
-        <div className="text-8xl opacity-20">
-          {listing.landType === "vita"
-            ? "🏡"
-            : listing.landType === "nala"
-              ? "💧"
-              : "🌾"}
-        </div>
-        <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
-        <div className="absolute top-4 left-4 flex flex-wrap gap-2">
-          {listing.isFeatured && (
-            <Badge className="gold-badge flex items-center gap-1">
-              <Star className="w-3 h-3 fill-current" /> বৈশিষ্ট্যময়
-            </Badge>
-          )}
-          {listing.isVerified && (
-            <Badge className="verified-badge flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3" /> যাচাইকৃত
-            </Badge>
-          )}
-        </div>
-      </div>
+      {/* Image Gallery */}
+      <ListingImageGallery listing={listing as ListingWithImages} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Main Content */}
@@ -520,7 +707,10 @@ export function ListingDetailPage() {
           </div>
 
           {/* ===== OFFER PORTAL ===== */}
-          <div className="bg-white border border-border rounded-xl p-5 shadow-card">
+          <div
+            className="bg-white border border-border rounded-xl p-5 shadow-card"
+            data-print-hide
+          >
             <h2 className="font-heading font-bold text-foreground mb-4 flex items-center gap-2">
               <ArrowLeftRight className="w-5 h-5 text-primary" />
               অফার পোর্টাল
@@ -642,7 +832,10 @@ export function ListingDetailPage() {
         {/* Sidebar */}
         <div className="space-y-5">
           {/* Contact Card */}
-          <div className="bg-white border border-border rounded-xl p-5 shadow-card sticky top-24">
+          <div
+            className="bg-white border border-border rounded-xl p-5 shadow-card sticky top-24"
+            data-print-hide
+          >
             <h3 className="font-heading font-bold text-foreground mb-4">
               বিক্রেতার সাথে যোগাযোগ করুন
             </h3>
@@ -721,7 +914,7 @@ export function ListingDetailPage() {
           </div>
 
           {/* Share / Compare */}
-          <Link to="/compare">
+          <Link to="/compare" data-print-hide>
             <Button variant="outline" className="w-full gap-2 text-sm">
               <ArrowLeftRight className="w-4 h-4" />
               তুলনা করুন
@@ -734,6 +927,7 @@ export function ListingDetailPage() {
       <Dialog
         open={!!counterDialogOffer}
         onOpenChange={(open) => !open && setCounterDialogOffer(null)}
+        data-print-hide
       >
         <DialogContent data-ocid="listing.dialog">
           <DialogHeader>

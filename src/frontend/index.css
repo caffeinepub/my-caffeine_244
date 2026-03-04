@@ -231,3 +231,46 @@
 ::-webkit-scrollbar-thumb:hover {
   background: oklch(var(--primary) / 0.6);
 }
+
+/* ===== PRINT STYLES ===== */
+@media print {
+  /* Hide nav, header, footer, and explicitly marked elements */
+  header,
+  nav,
+  footer,
+  [data-print-hide],
+  .sticky {
+    display: none !important;
+  }
+
+  /* Clean white background */
+  body {
+    background: white !important;
+    color: #111 !important;
+  }
+
+  .container {
+    max-width: 100% !important;
+    padding: 0 !important;
+  }
+
+  /* Force single column layout */
+  .lg\:grid-cols-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Images should print cleanly */
+  img {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+
+  /* Avoid page breaks inside key sections */
+  .bg-white,
+  .bg-secondary\/40,
+  .bg-blue-50,
+  .bg-emerald-50,
+  .bg-amber-50 {
+    page-break-inside: avoid;
+  }
+}

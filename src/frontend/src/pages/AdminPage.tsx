@@ -27,6 +27,9 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+
+// Extended listing type with images (stored as base64 in localStorage)
+type ListingWithImages = LandListing & { images?: string[] };
 import {
   useLocalLawyers,
   useLocalListings,
@@ -57,11 +60,13 @@ import {
   ArrowRight,
   BarChart2,
   Building2,
+  Camera,
   Check,
   ChevronRight,
   Eye,
   EyeOff,
   Home,
+  ImagePlus,
   KeyRound,
   Loader2,
   LockKeyhole,
@@ -86,7 +91,7 @@ import {
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 // ─── Admin credentials store (localStorage-backed) ──────────────────────────
@@ -1343,10 +1348,14 @@ function ListingsManagement() {
   const { listings, create, update, remove, toggleFeatured } =
     useLocalListings();
   const [isSaving, setIsSaving] = useState(false);
-  const [editListing, setEditListing] = useState<LandListing | null>(null);
+  const [editListing, setEditListing] = useState<ListingWithImages | null>(
+    null,
+  );
   const [showForm, setShowForm] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
 
-  const emptyListing: LandListing = {
+  const emptyListing: ListingWithImages = {
     id: `listing-${Date.now()}`,
     title: "",
     description: "",
@@ -1371,9 +1380,60 @@ function ListingsManagement() {
     status: "active",
     createdAt: BigInt(Date.now() * 1_000_000),
     updatedAt: BigInt(Date.now() * 1_000_000),
+    images: [],
   };
 
-  const [form, setForm] = useState<LandListing>(emptyListing);
+  const [form, setForm] = useState<ListingWithImages>(emptyListing);
+
+  // Image processing helper
+  const processImageFiles = useCallback(
+    (files: FileList | File[]) => {
+      const fileArr = Array.from(files);
+      const currentCount = form.images?.length ?? 0;
+      const remaining = 8 - currentCount;
+      if (remaining <= 0) {
+        toast.error("সর্বোচ্চ ৮টি ছবি আপলোড করা যাবে");
+        return;
+      }
+      const toProcess = fileArr.slice(0, remaining);
+      for (const file of toProcess) {
+        if (!file.type.startsWith("image/")) continue;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const dataUrl = e.target?.result as string;
+          setForm((prev) => ({
+            ...prev,
+            images: [...(prev.images ?? []), dataUrl],
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
+      if (fileArr.length > remaining) {
+        toast.error(`শুধু ${remaining}টি ছবি যোগ হয়েছে (সর্বোচ্চ ৮টি)`);
+      }
+    },
+    [form.images],
+  );
+
+  const handleImageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      processImageFiles(e.target.files);
+      e.target.value = ""; // reset so same file can be re-selected
+    }
+  };
+
+  const removeImage = (idx: number) => {
+    setForm((prev) => ({
+      ...prev,
+      images: (prev.images ?? []).filter((_, i) => i !== idx),
+    }));
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingOver(false);
+    if (e.dataTransfer.files) processImageFiles(e.dataTransfer.files);
+  };
 
   // Cascading location dropdowns
   const adminAvailableDistricts = form.division
@@ -1389,14 +1449,15 @@ function ListingsManagement() {
       id: `listing-${Date.now()}`,
       createdAt: BigInt(Date.now() * 1_000_000),
       updatedAt: BigInt(Date.now() * 1_000_000),
+      images: [],
     });
     setEditListing(null);
     setShowForm(true);
   };
 
   const openEdit = (l: LandListing) => {
-    setForm(l);
-    setEditListing(l);
+    setForm({ ...l, images: (l as ListingWithImages).images ?? [] });
+    setEditListing(l as ListingWithImages);
     setShowForm(true);
   };
 
@@ -1408,11 +1469,18 @@ function ListingsManagement() {
     setIsSaving(true);
     await new Promise((r) => setTimeout(r, 200));
     try {
+      // Save listing with images (as any to allow extra fields in localStorage)
+      const listingToSave = {
+        ...form,
+        updatedAt: BigInt(Date.now() * 1_000_000),
+        images: form.images ?? [],
+      } as unknown as LandListing;
+
       if (editListing) {
-        update({ ...form, updatedAt: BigInt(Date.now() * 1_000_000) });
+        update(listingToSave);
         toast.success("আপডেট হয়েছে");
       } else {
-        create(form);
+        create(listingToSave);
         toast.success("নতুন লিস্টিং যোগ করা হয়েছে");
       }
       setShowForm(false);
@@ -1797,6 +1865,108 @@ function ListingsManagement() {
                   placeholder="০১XXXXXXXXX"
                 />
               </div>
+
+              <FormSection label="ছবি আপলোড করুন" color="oklch(0.45 0.14 200)" />
+
+              {/* Hidden file input */}
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handleImageInputChange}
+              />
+
+              {/* Dropzone */}
+              <div
+                className="col-span-2"
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDraggingOver(true);
+                }}
+                onDragLeave={() => setIsDraggingOver(false)}
+                onDrop={handleDrop}
+                data-ocid="admin.listing.image.dropzone"
+              >
+                <button
+                  type="button"
+                  onClick={() => imageInputRef.current?.click()}
+                  disabled={(form.images?.length ?? 0) >= 8}
+                  data-ocid="admin.listing.upload_button"
+                  className="w-full rounded-xl border-2 border-dashed transition-all duration-200 p-5 flex flex-col items-center gap-2 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    borderColor: isDraggingOver
+                      ? "oklch(0.45 0.14 200)"
+                      : "oklch(0.82 0.04 240)",
+                    background: isDraggingOver
+                      ? "oklch(0.95 0.02 200)"
+                      : "oklch(0.98 0.005 240)",
+                  }}
+                >
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, oklch(0.45 0.14 200), oklch(0.38 0.12 210))",
+                    }}
+                  >
+                    <ImagePlus className="w-5 h-5 text-white" />
+                  </div>
+                  <div
+                    className="text-sm font-semibold"
+                    style={{ color: "oklch(0.30 0.08 200)" }}
+                  >
+                    ছবি যোগ করুন (সর্বোচ্চ ৮টি)
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    ক্লিক করুন বা ড্র্যাগ করে ছবি ছাড়ুন •{" "}
+                    <span style={{ color: "oklch(0.45 0.14 200)" }}>
+                      {form.images?.length ?? 0}/৮ টি আপলোড হয়েছে
+                    </span>
+                  </div>
+                </button>
+              </div>
+
+              {/* Thumbnail Grid */}
+              {(form.images?.length ?? 0) > 0 && (
+                <div className="col-span-2 grid grid-cols-3 sm:grid-cols-4 gap-2">
+                  {form.images?.map((src, idx) => (
+                    <div
+                      // biome-ignore lint/suspicious/noArrayIndexKey: image thumbnail grid position is stable
+                      key={idx}
+                      className="relative group rounded-xl overflow-hidden aspect-square border border-border"
+                    >
+                      <img
+                        src={src}
+                        alt={`ছবি ${idx + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                      {/* Overlay on hover */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors" />
+                      <button
+                        type="button"
+                        onClick={() => removeImage(idx)}
+                        className="absolute top-1 right-1 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-red-600"
+                        aria-label="ছবি মুছুন"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                      {idx === 0 && (
+                        <span
+                          className="absolute bottom-1 left-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md"
+                          style={{
+                            background: "oklch(0.45 0.14 200 / 0.9)",
+                            color: "white",
+                          }}
+                        >
+                          মূল ছবি
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <FormSection label="সেটিংস" color="oklch(0.52 0.16 240)" />
 

@@ -1,35 +1,34 @@
-# অনলাইন জমি ক্রয়/বিক্রয় (জমিবাজার)
+# অনলাইন জমি ক্রয়/বিক্রয়
 
 ## Current State
-
-- Full D2C land marketplace with listings, lawyer directory, news, compare tool, and offer negotiation
-- Backend: Motoko with LandListing, Lawyer, NewsArticle, Offer, UserProfile types; admin-only create/update/delete
-- Frontend: HomePage, ListingsPage, ListingDetailPage, ComparePage, LawyersPage, NewsPage, AdminPage
-- AdminPage has local username/password login (admin/admin123) separate from Internet Identity
-- Header uses Internet Identity (useInternetIdentity) for public login — showing "লগইন করুন" button
-- No public registration/registration page exists for buyers or sellers
-- Sample data seeds on first load via useSampleData hook
+- Full D2C land marketplace with admin panel, listings, lawyers, news management
+- Listings stored in localStorage via useLocalStore
+- ListingDetailPage shows spec table, history, soil report, offer portal
+- LandListing type does not have an images field
+- No photo upload in admin listing form
+- No print/PDF functionality anywhere
 
 ## Requested Changes (Diff)
 
 ### Add
-- `/register` route with a split registration page: two options — "বিক্রয়দাতা" (seller) and "ক্রয়গ্রহিতা" (buyer)
-- Each registration option shows a professional form with name, phone, email, location, and role selection
-- On submit, saves to backend via `saveCallerUserProfile()` and assigns role via `assignCallerUserRole()`
-- RegisterPage linked from Header ("রেজিস্ট্রেশন করুন" button replaces "লগইন করুন")
+- `images` field (string array of base64 data URLs) to the local listing data model
+- Image upload widget in admin listing form: multi-image uploader (up to 8 images), drag-and-drop or click to select, preview thumbnails with delete button
+- Image gallery on ListingDetailPage: show uploaded photos in a scrollable carousel/grid; fallback emoji if no images
+- Print button on ListingDetailPage: opens browser print dialog with a clean print stylesheet
+- PDF download button on ListingDetailPage: generates a PDF using the browser print-to-PDF flow (window.print with a print-specific CSS class) — no external library needed
 
 ### Modify
-- Header: replace Internet Identity "লগইন করুন" button with "রেজিস্ট্রেশন করুন" button that navigates to `/register`
-- Header: keep Admin link visible only when logged in as admin (existing behaviour)
-- AdminPage: keep admin username/password login unchanged (admin/admin123)
+- `LandListing` local interface extended with optional `images?: string[]`
+- `useLocalListings` and related read/write — no structural change needed, images are part of the listing object
+- AdminPage `ListingsManagement`: listing form dialog gets an image upload section
+- ListingDetailPage image gallery section replaces the emoji placeholder
 
 ### Remove
-- Header: remove public Internet Identity login/logout flow for non-admin users (the handleAuth / login / clear calls)
-- Header: remove the authenticated user avatar + logout button for non-admin users
+- Nothing removed
 
 ## Implementation Plan
-
-1. Create `src/frontend/src/pages/RegisterPage.tsx` — split-panel professional registration page with seller/buyer role selector and form fields (name, phone, email, location)
-2. Add `/register` route in App.tsx
-3. Update Header.tsx — replace login button with "রেজিস্ট্রেশন করুন" link button to `/register`; remove Internet Identity login flow for public users; keep admin nav link
-4. Validate & build
+1. Extend the local listing type with `images?: string[]` (frontend-only field, no backend change)
+2. Build an `ImageUploader` component inside AdminPage: file input (accept image/*), FileReader to convert to base64, thumbnail grid with remove buttons, max 8 images
+3. Add the ImageUploader to the listing form dialog under a new "ছবি" FormSection
+4. In ListingDetailPage, replace the emoji placeholder div with a real image gallery: if listing.images has entries show them in a horizontal scrollable strip with a lightbox-style click handler; else show the old emoji placeholder
+5. Add Print and PDF buttons to the ListingDetailPage (top-right area near breadcrumb or in a sticky action bar). Use window.print(). Add @media print CSS to index.css that hides nav/sidebar/buttons and shows the listing cleanly
