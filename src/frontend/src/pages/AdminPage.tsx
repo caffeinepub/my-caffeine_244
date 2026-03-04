@@ -53,8 +53,13 @@ import {
 } from "@/utils/bangladeshData";
 import { formatBDT, getLandTypeLabel, getStatusLabel } from "@/utils/format";
 import { useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import {
+  Info,
+  Loader2,
+  LockKeyhole,
   LogIn,
+  LogOut,
   MapPin,
   MessageSquare,
   Newspaper,
@@ -74,32 +79,315 @@ function AdminLogin() {
   const { login, loginStatus } = useInternetIdentity();
   const isLoggingIn = loginStatus === "logging-in";
 
+  const features = [
+    {
+      icon: ShieldCheck,
+      title: "নিরাপদ যাচাইকরণ",
+      desc: "Internet Identity দিয়ে সুরক্ষিত অ্যাক্সেস",
+    },
+    {
+      icon: MapPin,
+      title: "লিস্টিং পরিচালনা",
+      desc: "সকল জমির বিজ্ঞাপন সরাসরি নিয়ন্ত্রণ",
+    },
+    {
+      icon: Scale,
+      title: "আইনি তথ্য ব্যবস্থাপনা",
+      desc: "আইনজীবী ও নথিপত্র সম্পূর্ণ নিয়ন্ত্রণ",
+    },
+  ];
+
   return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="bg-white rounded-2xl border border-border p-8 text-center max-w-sm w-full shadow-card"
-      >
-        <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
-          <ShieldCheck className="w-8 h-8 text-primary" />
-        </div>
-        <h2 className="font-heading font-bold text-xl text-foreground mb-2">
-          অ্যাডমিন প্যানেল
-        </h2>
-        <p className="text-sm text-muted-foreground mb-6">
-          অ্যাডমিন প্যানেলে প্রবেশ করতে লগইন করুন
-        </p>
-        <Button
-          onClick={() => login()}
-          disabled={isLoggingIn}
-          className="w-full bg-primary hover:bg-primary/90 shadow-green"
-          size="lg"
+    <div className="min-h-screen flex">
+      {/* ── Left Branding Panel ── */}
+      <div className="hidden lg:flex lg:w-[48%] xl:w-[52%] relative bg-primary flex-col justify-between p-12 overflow-hidden">
+        {/* Decorative circles */}
+        <div
+          className="absolute -top-24 -right-24 w-96 h-96 rounded-full"
+          style={{
+            background: "oklch(1 0 0 / 0.04)",
+          }}
+        />
+        <div
+          className="absolute top-1/3 -left-16 w-64 h-64 rounded-full"
+          style={{ background: "oklch(1 0 0 / 0.03)" }}
+        />
+        <div
+          className="absolute -bottom-16 right-12 w-80 h-80 rounded-full"
+          style={{ background: "oklch(1 0 0 / 0.05)" }}
+        />
+        {/* Subtle grid pattern */}
+        <div
+          className="absolute inset-0 opacity-[0.06]"
+          style={{
+            backgroundImage:
+              "linear-gradient(oklch(1 0 0 / 1) 1px, transparent 1px), linear-gradient(90deg, oklch(1 0 0 / 1) 1px, transparent 1px)",
+            backgroundSize: "40px 40px",
+          }}
+        />
+
+        {/* Logo */}
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="relative z-10"
         >
-          <LogIn className="w-4 h-4 mr-2" />
-          {isLoggingIn ? "লগইন হচ্ছে..." : "লগইন করুন"}
-        </Button>
-      </motion.div>
+          <div className="flex items-center gap-3 mb-2">
+            <div
+              className="w-12 h-12 rounded-xl flex items-center justify-center"
+              style={{ background: "oklch(1 0 0 / 0.12)" }}
+            >
+              <MapPin
+                className="w-6 h-6"
+                style={{ color: "oklch(0.88 0.16 78)" }}
+              />
+            </div>
+            <div>
+              <span
+                className="text-2xl font-extrabold tracking-tight"
+                style={{
+                  fontFamily: "'Bricolage Grotesque', system-ui",
+                  color: "oklch(0.97 0.01 120)",
+                }}
+              >
+                জমিবাজার
+              </span>
+              <div
+                className="text-xs font-medium tracking-widest uppercase"
+                style={{ color: "oklch(1 0 0 / 0.5)" }}
+              >
+                Bangladesh Land Marketplace
+              </div>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Tagline + Features */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.15 }}
+          className="relative z-10"
+        >
+          <h2
+            className="text-3xl xl:text-4xl font-extrabold leading-tight mb-3"
+            style={{
+              fontFamily: "'Bricolage Grotesque', system-ui",
+              color: "oklch(0.97 0.01 120)",
+            }}
+          >
+            বাংলাদেশের সেরা
+            <br />
+            <span style={{ color: "oklch(0.88 0.16 78)" }}>ডিজিটাল জমি</span>
+            <br />
+            মার্কেটপ্লেস
+          </h2>
+          <p
+            className="text-sm leading-relaxed mb-8"
+            style={{ color: "oklch(1 0 0 / 0.55)" }}
+          >
+            সরাসরি মালিকের সাথে কেনাবেচা — দালাল ছাড়া, ঝামেলা ছাড়া
+          </p>
+
+          <div className="space-y-4">
+            {features.map((f, i) => (
+              <motion.div
+                key={f.title}
+                initial={{ opacity: 0, x: -16 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: 0.3 + i * 0.1 }}
+                className="flex items-start gap-3"
+              >
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
+                  style={{ background: "oklch(1 0 0 / 0.1)" }}
+                >
+                  <f.icon
+                    className="w-4 h-4"
+                    style={{ color: "oklch(0.88 0.16 78)" }}
+                  />
+                </div>
+                <div>
+                  <div
+                    className="text-sm font-semibold"
+                    style={{ color: "oklch(0.95 0.01 120)" }}
+                  >
+                    {f.title}
+                  </div>
+                  <div
+                    className="text-xs mt-0.5"
+                    style={{ color: "oklch(1 0 0 / 0.5)" }}
+                  >
+                    {f.desc}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </motion.div>
+
+        {/* Bottom copyright */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.7 }}
+          className="relative z-10"
+          style={{ color: "oklch(1 0 0 / 0.35)" }}
+        >
+          <p className="text-xs">
+            © {new Date().getFullYear()} জমিবাজার। সর্বস্বত্ব সংরক্ষিত।
+          </p>
+        </motion.div>
+      </div>
+
+      {/* ── Right Login Panel ── */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-background">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
+          className="w-full max-w-md"
+        >
+          {/* Mobile logo */}
+          <div className="flex lg:hidden items-center gap-2 mb-8">
+            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
+              <MapPin className="w-5 h-5 text-primary-foreground" />
+            </div>
+            <span
+              className="text-xl font-extrabold text-foreground"
+              style={{ fontFamily: "'Bricolage Grotesque', system-ui" }}
+            >
+              জমিবাজার
+            </span>
+          </div>
+
+          {/* Card */}
+          <div className="bg-card rounded-2xl border border-border shadow-card p-8 sm:p-10">
+            {/* Badge */}
+            <div className="mb-6">
+              <span
+                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border"
+                style={{
+                  background: "oklch(var(--primary) / 0.08)",
+                  borderColor: "oklch(var(--primary) / 0.2)",
+                  color: "oklch(var(--primary))",
+                }}
+              >
+                <ShieldCheck className="w-3 h-3" />
+                অ্যাডমিন পোর্টাল
+              </span>
+            </div>
+
+            {/* Heading */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              className="mb-6"
+            >
+              <h1
+                className="text-3xl font-extrabold text-foreground mb-1.5"
+                style={{ fontFamily: "'Bricolage Grotesque', system-ui" }}
+              >
+                স্বাগতম
+              </h1>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                অ্যাডমিন প্যানেল পরিচালনার জন্য
+                <br />
+                আপনার পরিচয় যাচাই করুন
+              </p>
+            </motion.div>
+
+            {/* Info box */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.25 }}
+              className="rounded-xl p-4 mb-6 flex gap-3"
+              style={{
+                background: "oklch(0.55 0.14 200 / 0.07)",
+                borderLeft: "3px solid oklch(0.55 0.14 200 / 0.5)",
+              }}
+            >
+              <Info
+                className="w-4 h-4 flex-shrink-0 mt-0.5"
+                style={{ color: "oklch(0.45 0.14 200)" }}
+              />
+              <div>
+                <p
+                  className="text-xs font-semibold mb-0.5"
+                  style={{ color: "oklch(0.35 0.12 200)" }}
+                >
+                  Internet Identity লগইন
+                </p>
+                <p
+                  className="text-xs leading-relaxed"
+                  style={{ color: "oklch(0.45 0.1 200)" }}
+                >
+                  আপনার ICP ডিজিটাল পরিচয় ব্যবহার করে নিরাপদে প্রবেশ করুন। কোনো পাসওয়ার্ড
+                  প্রয়োজন নেই।
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Login button */}
+            <motion.div
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.35 }}
+            >
+              <Button
+                onClick={() => login()}
+                disabled={isLoggingIn}
+                size="lg"
+                className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all duration-200"
+                data-ocid="admin.login.submit_button"
+              >
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    যাচাই করা হচ্ছে...
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4 mr-2" />
+                    লগইন করুন
+                  </>
+                )}
+              </Button>
+            </motion.div>
+
+            {/* Security note */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.45 }}
+              className="mt-4 flex items-center justify-center gap-1.5"
+            >
+              <LockKeyhole className="w-3 h-3 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">
+                256-bit এনক্রিপশন দ্বারা সুরক্ষিত সংযোগ
+              </p>
+            </motion.div>
+          </div>
+
+          {/* Back to homepage */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+            className="mt-6 text-center"
+          >
+            <Link
+              to="/"
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ← হোমপেজে ফিরুন
+            </Link>
+          </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }
@@ -1038,7 +1326,7 @@ function NewsManagement() {
 }
 
 export function AdminPage() {
-  const { identity } = useInternetIdentity();
+  const { identity, clear } = useInternetIdentity();
   const { data: isAdmin, isLoading: adminLoading } = useIsAdmin();
   const { data: listings } = useGetAllListings();
   const { data: lawyers } = useGetAllLawyers();
@@ -1054,6 +1342,12 @@ export function AdminPage() {
     );
   }
   if (!isAdmin) return <AccessDenied />;
+
+  const principal = identity?.getPrincipal().toString() ?? "";
+  const shortPrincipal =
+    principal.length > 16
+      ? `${principal.slice(0, 8)}...${principal.slice(-6)}`
+      : principal;
 
   const dashStats = [
     {
@@ -1083,89 +1377,178 @@ export function AdminPage() {
   ];
 
   return (
-    <div className="container max-w-7xl mx-auto px-4 py-8">
-      {/* Header */}
+    <div>
+      {/* ── Gradient Admin Banner ── */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        className="mb-8"
+        transition={{ duration: 0.4 }}
+        className="relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.22 0.08 155) 0%, oklch(0.28 0.1 155) 50%, oklch(0.24 0.09 165) 100%)",
+        }}
       >
-        <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-            <ShieldCheck className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">
-              অ্যাডমিন প্যানেল
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              জমিবাজার ব্যবস্থাপনা কেন্দ্র
-            </p>
+        {/* Subtle grid overlay */}
+        <div
+          className="absolute inset-0 opacity-[0.05]"
+          style={{
+            backgroundImage:
+              "linear-gradient(oklch(1 0 0 / 1) 1px, transparent 1px), linear-gradient(90deg, oklch(1 0 0 / 1) 1px, transparent 1px)",
+            backgroundSize: "32px 32px",
+          }}
+        />
+        {/* Decorative circle */}
+        <div
+          className="absolute -right-8 -top-8 w-40 h-40 rounded-full opacity-10"
+          style={{ background: "oklch(0.88 0.16 78)" }}
+        />
+
+        <div className="relative z-10 container max-w-7xl mx-auto px-4 py-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+                style={{ background: "oklch(1 0 0 / 0.12)" }}
+              >
+                <ShieldCheck
+                  className="w-5 h-5"
+                  style={{ color: "oklch(0.88 0.16 78)" }}
+                />
+              </div>
+              <div>
+                <h1
+                  className="text-xl font-extrabold leading-tight"
+                  style={{
+                    fontFamily: "'Bricolage Grotesque', system-ui",
+                    color: "oklch(0.97 0.01 120)",
+                  }}
+                >
+                  অ্যাডমিন প্যানেল
+                </h1>
+                <p className="text-xs" style={{ color: "oklch(1 0 0 / 0.5)" }}>
+                  জমিবাজার ব্যবস্থাপনা কেন্দ্র
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Identity badge */}
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
+                style={{ background: "oklch(1 0 0 / 0.08)" }}
+              >
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ background: "oklch(0.88 0.16 78 / 0.2)" }}
+                >
+                  <ShieldCheck
+                    className="w-3 h-3"
+                    style={{ color: "oklch(0.88 0.16 78)" }}
+                  />
+                </div>
+                <span
+                  className="text-xs font-mono font-medium"
+                  style={{ color: "oklch(1 0 0 / 0.65)" }}
+                >
+                  {shortPrincipal}
+                </span>
+              </div>
+
+              {/* Logout button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => clear()}
+                data-ocid="admin.header.logout_button"
+                className="gap-1.5 text-xs border-white/20 hover:bg-white/10 hover:border-white/30 transition-all"
+                style={{
+                  color: "oklch(1 0 0 / 0.75)",
+                  background: "oklch(1 0 0 / 0.06)",
+                }}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                লগআউট
+              </Button>
+            </div>
           </div>
         </div>
       </motion.div>
 
-      {/* Dashboard stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {dashStats.map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="bg-white rounded-xl border border-border p-4 shadow-card"
-          >
-            <div
-              className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${stat.color}`}
+      <div className="container max-w-7xl mx-auto px-4 py-8">
+        {/* Section sub-header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-8"
+        >
+          <p className="text-sm text-muted-foreground">
+            সকল লিস্টিং, আইনজীবী এবং সংবাদ এখান থেকে পরিচালনা করুন
+          </p>
+        </motion.div>
+
+        {/* Dashboard stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          {dashStats.map((stat, i) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.05 }}
+              className="bg-white rounded-xl border border-border p-4 shadow-card"
             >
-              <stat.icon className="w-5 h-5" />
-            </div>
-            <div className="text-2xl font-heading font-bold text-foreground">
-              {stat.value}
-            </div>
-            <div className="text-xs text-muted-foreground mt-0.5">
-              {stat.label}
-            </div>
-          </motion.div>
-        ))}
+              <div
+                className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${stat.color}`}
+              >
+                <stat.icon className="w-5 h-5" />
+              </div>
+              <div className="text-2xl font-heading font-bold text-foreground">
+                {stat.value}
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                {stat.label}
+              </div>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Management tabs */}
+        <Tabs defaultValue="listings">
+          <TabsList className="mb-6">
+            <TabsTrigger
+              value="listings"
+              data-ocid="admin.listings.tab"
+              className="gap-1.5"
+            >
+              <MapPin className="w-4 h-4" /> লিস্টিং
+            </TabsTrigger>
+            <TabsTrigger
+              value="lawyers"
+              data-ocid="admin.lawyers.tab"
+              className="gap-1.5"
+            >
+              <Scale className="w-4 h-4" /> আইনজীবী
+            </TabsTrigger>
+            <TabsTrigger
+              value="news"
+              data-ocid="admin.news.tab"
+              className="gap-1.5"
+            >
+              <Newspaper className="w-4 h-4" /> সংবাদ
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="listings">
+            <ListingsManagement />
+          </TabsContent>
+          <TabsContent value="lawyers">
+            <LawyersManagement />
+          </TabsContent>
+          <TabsContent value="news">
+            <NewsManagement />
+          </TabsContent>
+        </Tabs>
       </div>
-
-      {/* Management tabs */}
-      <Tabs defaultValue="listings">
-        <TabsList className="mb-6">
-          <TabsTrigger
-            value="listings"
-            data-ocid="admin.listings.tab"
-            className="gap-1.5"
-          >
-            <MapPin className="w-4 h-4" /> লিস্টিং
-          </TabsTrigger>
-          <TabsTrigger
-            value="lawyers"
-            data-ocid="admin.lawyers.tab"
-            className="gap-1.5"
-          >
-            <Scale className="w-4 h-4" /> আইনজীবী
-          </TabsTrigger>
-          <TabsTrigger
-            value="news"
-            data-ocid="admin.news.tab"
-            className="gap-1.5"
-          >
-            <Newspaper className="w-4 h-4" /> সংবাদ
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="listings">
-          <ListingsManagement />
-        </TabsContent>
-        <TabsContent value="lawyers">
-          <LawyersManagement />
-        </TabsContent>
-        <TabsContent value="news">
-          <NewsManagement />
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
