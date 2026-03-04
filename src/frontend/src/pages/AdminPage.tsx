@@ -62,7 +62,6 @@ import {
   Eye,
   EyeOff,
   Home,
-  Info,
   KeyRound,
   Loader2,
   LockKeyhole,
@@ -805,41 +804,6 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                 </motion.div>
               )}
 
-              {/* Info box - only on login view */}
-              {view === "login" && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.28 }}
-                  className="rounded-xl p-4 mb-6 flex gap-3"
-                  style={{
-                    background: "oklch(0.96 0.02 215)",
-                    border: "1px solid oklch(0.88 0.06 215)",
-                    borderLeft: "4px solid oklch(0.55 0.14 215)",
-                  }}
-                >
-                  <Info
-                    className="w-4 h-4 flex-shrink-0 mt-0.5"
-                    style={{ color: "oklch(0.48 0.14 215)" }}
-                  />
-                  <div>
-                    <p
-                      className="text-xs font-bold mb-0.5"
-                      style={{ color: "oklch(0.32 0.12 215)" }}
-                    >
-                      অ্যাডমিন লগইন তথ্য
-                    </p>
-                    <p
-                      className="text-xs leading-relaxed"
-                      style={{ color: "oklch(0.42 0.08 215)" }}
-                    >
-                      ইউজারনেম: <strong>admin</strong> | পাসওয়ার্ড:{" "}
-                      <strong>admin123</strong>
-                    </p>
-                  </div>
-                </motion.div>
-              )}
-
               {/* ─── Login Form ─── */}
               {view === "login" && (
                 <motion.form
@@ -1032,15 +996,13 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                         className="text-xs font-bold mb-0.5"
                         style={{ color: "oklch(0.38 0.12 78)" }}
                       >
-                        রিসেট কোড
+                        রিসেট কোড প্রয়োজন
                       </p>
                       <p
                         className="text-xs leading-relaxed"
                         style={{ color: "oklch(0.45 0.08 78)" }}
                       >
-                        ডিফল্ট রিসেট কোড: <strong>JOMI2024</strong>
-                        <br />
-                        এই কোড দিয়ে নতুন পাসওয়ার্ড সেট করুন।
+                        আপনার রিসেট কোড দিয়ে নতুন পাসওয়ার্ড সেট করুন।
                       </p>
                     </div>
                   </div>
