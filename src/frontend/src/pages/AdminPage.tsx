@@ -55,12 +55,15 @@ import type React from "react";
 
 import { Link } from "@tanstack/react-router";
 import {
+  AlertTriangle,
   ArrowRight,
   Check,
   ChevronRight,
   Eye,
+  EyeOff,
   Home,
   Info,
+  KeyRound,
   Loader2,
   LockKeyhole,
   LogOut,
@@ -71,6 +74,7 @@ import {
   Plus,
   RotateCcw,
   Scale,
+  Settings,
   ShieldCheck,
   Star,
   Trash2,
@@ -78,8 +82,24 @@ import {
   Users,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
+
+// ─── Admin credentials store (localStorage-backed) ──────────────────────────
+const ADMIN_CREDS_KEY = "admin_credentials";
+const DEFAULT_RESET_CODE = "JOMI2024";
+
+function getAdminCredentials(): { username: string; password: string } {
+  try {
+    const stored = localStorage.getItem(ADMIN_CREDS_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch {}
+  return { username: "admin", password: "admin123" };
+}
+
+function saveAdminCredentials(username: string, password: string) {
+  localStorage.setItem(ADMIN_CREDS_KEY, JSON.stringify({ username, password }));
+}
 
 // ─── Styled Form Section Divider ────────────────────────────────────────────
 function FormSection({
@@ -204,22 +224,63 @@ function FormDialogShell({
 }
 
 // ─── Admin Login ────────────────────────────────────────────────────────────
+type LoginView = "login" | "forgot" | "reset_success";
+
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [view, setView] = useState<LoginView>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  // Forgot password state
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+  const [isResetting, setIsResetting] = useState(false);
+  const resetAttempts = useRef(0);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoggingIn(true);
-    // Simulate brief loading for UX
     await new Promise((r) => setTimeout(r, 400));
-    if (username === "admin" && password === "admin123") {
+    const creds = getAdminCredentials();
+    if (username === creds.username && password === creds.password) {
       onLogin();
     } else {
       toast.error("ভুল ইউজারনেম বা পাসওয়ার্ড");
     }
     setIsLoggingIn(false);
+  };
+
+  const handleForgotReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetAttempts.current >= 5) {
+      toast.error("অনেকবার চেষ্টা হয়েছে। পেজ রিফ্রেশ করুন।");
+      return;
+    }
+    if (resetCode.trim() !== DEFAULT_RESET_CODE) {
+      resetAttempts.current += 1;
+      toast.error(`ভুল রিসেট কোড। বাকি চেষ্টা: ${5 - resetAttempts.current}`);
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error("পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("নতুন পাসওয়ার্ড মিলছে না");
+      return;
+    }
+    setIsResetting(true);
+    await new Promise((r) => setTimeout(r, 500));
+    const creds = getAdminCredentials();
+    saveAdminCredentials(creds.username, newPassword);
+    setIsResetting(false);
+    setView("reset_success");
+    toast.success("পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে");
   };
 
   const features = [
@@ -574,295 +635,718 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
                   className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 rounded-full"
                   style={{
                     background:
-                      "linear-gradient(135deg, oklch(0.45 0.16 155 / 0.10), oklch(0.55 0.14 155 / 0.06))",
-                    border: "1px solid oklch(0.45 0.16 155 / 0.22)",
-                    color: "oklch(0.38 0.14 155)",
+                      view === "forgot" || view === "reset_success"
+                        ? "linear-gradient(135deg, oklch(0.55 0.16 78 / 0.10), oklch(0.65 0.14 78 / 0.06))"
+                        : "linear-gradient(135deg, oklch(0.45 0.16 155 / 0.10), oklch(0.55 0.14 155 / 0.06))",
+                    border:
+                      view === "forgot" || view === "reset_success"
+                        ? "1px solid oklch(0.55 0.16 78 / 0.22)"
+                        : "1px solid oklch(0.45 0.16 155 / 0.22)",
+                    color:
+                      view === "forgot" || view === "reset_success"
+                        ? "oklch(0.42 0.14 78)"
+                        : "oklch(0.38 0.14 155)",
                   }}
                 >
-                  <ShieldCheck className="w-3.5 h-3.5" />
-                  অ্যাডমিন পোর্টাল
+                  {view === "forgot" || view === "reset_success" ? (
+                    <>
+                      <KeyRound className="w-3.5 h-3.5" />
+                      পাসওয়ার্ড রিসেট
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      অ্যাডমিন পোর্টাল
+                    </>
+                  )}
                 </span>
               </motion.div>
 
               {/* Heading */}
               <motion.div
+                key={view}
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.12 }}
                 className="mb-6"
               >
-                <h1
-                  className="text-3xl font-extrabold mb-2"
-                  style={{
-                    fontFamily: "'Bricolage Grotesque', system-ui",
-                    color: "oklch(0.16 0.06 155)",
-                  }}
-                >
-                  স্বাগতম,{" "}
-                  <span
-                    style={{
-                      background:
-                        "linear-gradient(90deg, oklch(0.45 0.16 155), oklch(0.42 0.14 185))",
-                      WebkitBackgroundClip: "text",
-                      WebkitTextFillColor: "transparent",
-                      backgroundClip: "text",
-                    }}
-                  >
-                    অ্যাডমিন
-                  </span>
-                </h1>
-                <p
-                  className="text-sm leading-relaxed"
-                  style={{ color: "oklch(0.52 0.04 240)" }}
-                >
-                  অ্যাডমিন প্যানেল পরিচালনার জন্য আপনার পরিচয় যাচাই করুন
-                </p>
-              </motion.div>
-
-              {/* Admin capabilities checklist */}
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.18 }}
-                className="mb-6 rounded-2xl p-4 space-y-2.5"
-                style={{
-                  background: "oklch(0.97 0.01 155)",
-                  border: "1px solid oklch(0.92 0.04 155)",
-                }}
-              >
-                {adminCapabilities.map((cap, i) => (
-                  <motion.div
-                    key={cap}
-                    initial={{ opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.22 + i * 0.06 }}
-                    className="flex items-center gap-3"
-                  >
-                    <div
-                      className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                {view === "login" && (
+                  <>
+                    <h1
+                      className="text-3xl font-extrabold mb-2"
                       style={{
-                        background:
-                          "linear-gradient(135deg, oklch(0.45 0.16 155), oklch(0.52 0.14 155))",
+                        fontFamily: "'Bricolage Grotesque', system-ui",
+                        color: "oklch(0.16 0.06 155)",
                       }}
                     >
-                      <Check
-                        className="w-2.5 h-2.5 text-white"
-                        strokeWidth={3}
+                      স্বাগতম,{" "}
+                      <span
+                        style={{
+                          background:
+                            "linear-gradient(90deg, oklch(0.45 0.16 155), oklch(0.42 0.14 185))",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          backgroundClip: "text",
+                        }}
+                      >
+                        অ্যাডমিন
+                      </span>
+                    </h1>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: "oklch(0.52 0.04 240)" }}
+                    >
+                      অ্যাডমিন প্যানেল পরিচালনার জন্য আপনার পরিচয় যাচাই করুন
+                    </p>
+                  </>
+                )}
+                {view === "forgot" && (
+                  <>
+                    <h1
+                      className="text-3xl font-extrabold mb-2"
+                      style={{
+                        fontFamily: "'Bricolage Grotesque', system-ui",
+                        color: "oklch(0.16 0.06 155)",
+                      }}
+                    >
+                      পাসওয়ার্ড{" "}
+                      <span
+                        style={{
+                          background:
+                            "linear-gradient(90deg, oklch(0.52 0.16 78), oklch(0.45 0.14 68))",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          backgroundClip: "text",
+                        }}
+                      >
+                        রিসেট
+                      </span>
+                    </h1>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: "oklch(0.52 0.04 240)" }}
+                    >
+                      রিসেট কোড ব্যবহার করে নতুন পাসওয়ার্ড সেট করুন
+                    </p>
+                  </>
+                )}
+                {view === "reset_success" && (
+                  <>
+                    <h1
+                      className="text-3xl font-extrabold mb-2"
+                      style={{
+                        fontFamily: "'Bricolage Grotesque', system-ui",
+                        color: "oklch(0.16 0.06 155)",
+                      }}
+                    >
+                      সফলভাবে{" "}
+                      <span
+                        style={{
+                          background:
+                            "linear-gradient(90deg, oklch(0.45 0.16 155), oklch(0.42 0.14 185))",
+                          WebkitBackgroundClip: "text",
+                          WebkitTextFillColor: "transparent",
+                          backgroundClip: "text",
+                        }}
+                      >
+                        সম্পন্ন
+                      </span>
+                    </h1>
+                    <p
+                      className="text-sm leading-relaxed"
+                      style={{ color: "oklch(0.52 0.04 240)" }}
+                    >
+                      আপনার পাসওয়ার্ড পরিবর্তন হয়ে গেছে
+                    </p>
+                  </>
+                )}
+              </motion.div>
+
+              {/* Admin capabilities checklist - only on login view */}
+              {view === "login" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.18 }}
+                  className="mb-6 rounded-2xl p-4 space-y-2.5"
+                  style={{
+                    background: "oklch(0.97 0.01 155)",
+                    border: "1px solid oklch(0.92 0.04 155)",
+                  }}
+                >
+                  {adminCapabilities.map((cap, i) => (
+                    <motion.div
+                      key={cap}
+                      initial={{ opacity: 0, x: -8 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.22 + i * 0.06 }}
+                      className="flex items-center gap-3"
+                    >
+                      <div
+                        className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, oklch(0.45 0.16 155), oklch(0.52 0.14 155))",
+                        }}
+                      >
+                        <Check
+                          className="w-2.5 h-2.5 text-white"
+                          strokeWidth={3}
+                        />
+                      </div>
+                      <span
+                        className="text-sm font-medium"
+                        style={{ color: "oklch(0.30 0.08 155)" }}
+                      >
+                        {cap}
+                      </span>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+
+              {/* Info box - only on login view */}
+              {view === "login" && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.28 }}
+                  className="rounded-xl p-4 mb-6 flex gap-3"
+                  style={{
+                    background: "oklch(0.96 0.02 215)",
+                    border: "1px solid oklch(0.88 0.06 215)",
+                    borderLeft: "4px solid oklch(0.55 0.14 215)",
+                  }}
+                >
+                  <Info
+                    className="w-4 h-4 flex-shrink-0 mt-0.5"
+                    style={{ color: "oklch(0.48 0.14 215)" }}
+                  />
+                  <div>
+                    <p
+                      className="text-xs font-bold mb-0.5"
+                      style={{ color: "oklch(0.32 0.12 215)" }}
+                    >
+                      অ্যাডমিন লগইন তথ্য
+                    </p>
+                    <p
+                      className="text-xs leading-relaxed"
+                      style={{ color: "oklch(0.42 0.08 215)" }}
+                    >
+                      ইউজারনেম: <strong>admin</strong> | পাসওয়ার্ড:{" "}
+                      <strong>admin123</strong>
+                    </p>
+                  </div>
+                </motion.div>
+              )}
+
+              {/* ─── Login Form ─── */}
+              {view === "login" && (
+                <motion.form
+                  key="login-form"
+                  onSubmit={handleLogin}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.32 }}
+                  className="space-y-4"
+                >
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="admin-username"
+                      className="text-sm font-semibold"
+                      style={{ color: "oklch(0.28 0.06 155)" }}
+                    >
+                      ইউজারনেম
+                    </Label>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <Users
+                          className="w-4 h-4"
+                          style={{ color: "oklch(0.60 0.06 240)" }}
+                        />
+                      </span>
+                      <input
+                        id="admin-username"
+                        type="text"
+                        value={username}
+                        onChange={(e) => setUsername(e.target.value)}
+                        placeholder="ইউজারনেম লিখুন"
+                        autoComplete="username"
+                        required
+                        data-ocid="admin.login.username.input"
+                        className="w-full h-12 pl-10 pr-4 rounded-xl border text-sm outline-none transition-all"
+                        style={{
+                          borderColor: "oklch(0.88 0.04 240)",
+                          background: "oklch(0.98 0.005 240)",
+                          color: "oklch(0.20 0.06 240)",
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.borderColor =
+                            "oklch(0.45 0.16 155)";
+                          e.currentTarget.style.boxShadow =
+                            "0 0 0 3px oklch(0.45 0.16 155 / 0.15)";
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.borderColor =
+                            "oklch(0.88 0.04 240)";
+                          e.currentTarget.style.boxShadow = "none";
+                        }}
                       />
                     </div>
-                    <span
-                      className="text-sm font-medium"
-                      style={{ color: "oklch(0.30 0.08 155)" }}
-                    >
-                      {cap}
-                    </span>
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              {/* Info box */}
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.28 }}
-                className="rounded-xl p-4 mb-6 flex gap-3"
-                style={{
-                  background: "oklch(0.96 0.02 215)",
-                  border: "1px solid oklch(0.88 0.06 215)",
-                  borderLeft: "4px solid oklch(0.55 0.14 215)",
-                }}
-              >
-                <Info
-                  className="w-4 h-4 flex-shrink-0 mt-0.5"
-                  style={{ color: "oklch(0.48 0.14 215)" }}
-                />
-                <div>
-                  <p
-                    className="text-xs font-bold mb-0.5"
-                    style={{ color: "oklch(0.32 0.12 215)" }}
-                  >
-                    অ্যাডমিন লগইন তথ্য
-                  </p>
-                  <p
-                    className="text-xs leading-relaxed"
-                    style={{ color: "oklch(0.42 0.08 215)" }}
-                  >
-                    ইউজারনেম: <strong>admin</strong> | পাসওয়ার্ড:{" "}
-                    <strong>admin123</strong>
-                  </p>
-                </div>
-              </motion.div>
-
-              {/* Username/Password form */}
-              <motion.form
-                onSubmit={handleLogin}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.32 }}
-                className="space-y-4"
-              >
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="admin-username"
-                    className="text-sm font-semibold"
-                    style={{ color: "oklch(0.28 0.06 155)" }}
-                  >
-                    ইউজারনেম
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <Users
-                        className="w-4 h-4"
-                        style={{ color: "oklch(0.60 0.06 240)" }}
-                      />
-                    </span>
-                    <input
-                      id="admin-username"
-                      type="text"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="ইউজারনেম লিখুন"
-                      autoComplete="username"
-                      required
-                      data-ocid="admin.login.username.input"
-                      className="w-full h-12 pl-10 pr-4 rounded-xl border text-sm outline-none transition-all"
-                      style={{
-                        borderColor: "oklch(0.88 0.04 240)",
-                        background: "oklch(0.98 0.005 240)",
-                        color: "oklch(0.20 0.06 240)",
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "oklch(0.45 0.16 155)";
-                        e.currentTarget.style.boxShadow =
-                          "0 0 0 3px oklch(0.45 0.16 155 / 0.15)";
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "oklch(0.88 0.04 240)";
-                        e.currentTarget.style.boxShadow = "none";
-                      }}
-                    />
                   </div>
-                </div>
 
-                <div className="space-y-1.5">
-                  <Label
-                    htmlFor="admin-password"
-                    className="text-sm font-semibold"
-                    style={{ color: "oklch(0.28 0.06 155)" }}
-                  >
-                    পাসওয়ার্ড
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
-                      <LockKeyhole
-                        className="w-4 h-4"
-                        style={{ color: "oklch(0.60 0.06 240)" }}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <Label
+                        htmlFor="admin-password"
+                        className="text-sm font-semibold"
+                        style={{ color: "oklch(0.28 0.06 155)" }}
+                      >
+                        পাসওয়ার্ড
+                      </Label>
+                      <button
+                        type="button"
+                        onClick={() => setView("forgot")}
+                        className="text-xs font-medium transition-colors hover:underline"
+                        style={{ color: "oklch(0.45 0.16 155)" }}
+                        data-ocid="admin.login.forgot_password.button"
+                      >
+                        পাসওয়ার্ড ভুলে গেছেন?
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <LockKeyhole
+                          className="w-4 h-4"
+                          style={{ color: "oklch(0.60 0.06 240)" }}
+                        />
+                      </span>
+                      <input
+                        id="admin-password"
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="পাসওয়ার্ড লিখুন"
+                        autoComplete="current-password"
+                        required
+                        data-ocid="admin.login.password.input"
+                        className="w-full h-12 pl-10 pr-11 rounded-xl border text-sm outline-none transition-all"
+                        style={{
+                          borderColor: "oklch(0.88 0.04 240)",
+                          background: "oklch(0.98 0.005 240)",
+                          color: "oklch(0.20 0.06 240)",
+                        }}
+                        onFocus={(e) => {
+                          e.currentTarget.style.borderColor =
+                            "oklch(0.45 0.16 155)";
+                          e.currentTarget.style.boxShadow =
+                            "0 0 0 3px oklch(0.45 0.16 155 / 0.15)";
+                        }}
+                        onBlur={(e) => {
+                          e.currentTarget.style.borderColor =
+                            "oklch(0.88 0.04 240)";
+                          e.currentTarget.style.boxShadow = "none";
+                        }}
                       />
-                    </span>
-                    <input
-                      id="admin-password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="পাসওয়ার্ড লিখুন"
-                      autoComplete="current-password"
-                      required
-                      data-ocid="admin.login.password.input"
-                      className="w-full h-12 pl-10 pr-4 rounded-xl border text-sm outline-none transition-all"
-                      style={{
-                        borderColor: "oklch(0.88 0.04 240)",
-                        background: "oklch(0.98 0.005 240)",
-                        color: "oklch(0.20 0.06 240)",
-                      }}
-                      onFocus={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "oklch(0.45 0.16 155)";
-                        e.currentTarget.style.boxShadow =
-                          "0 0 0 3px oklch(0.45 0.16 155 / 0.15)";
-                      }}
-                      onBlur={(e) => {
-                        e.currentTarget.style.borderColor =
-                          "oklch(0.88 0.04 240)";
-                        e.currentTarget.style.boxShadow = "none";
-                      }}
-                    />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((p) => !p)}
+                        className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg transition-colors hover:bg-black/5"
+                        tabIndex={-1}
+                        data-ocid="admin.login.toggle_password.button"
+                      >
+                        {showPassword ? (
+                          <EyeOff
+                            className="w-4 h-4"
+                            style={{ color: "oklch(0.60 0.06 240)" }}
+                          />
+                        ) : (
+                          <Eye
+                            className="w-4 h-4"
+                            style={{ color: "oklch(0.60 0.06 240)" }}
+                          />
+                        )}
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <Button
-                  type="submit"
-                  disabled={isLoggingIn}
-                  size="lg"
-                  className="w-full h-14 text-base font-bold text-white shadow-lg transition-all duration-300 group relative overflow-hidden rounded-xl"
-                  style={{
-                    background:
-                      "linear-gradient(135deg, oklch(0.42 0.16 155) 0%, oklch(0.36 0.14 165) 100%)",
-                    boxShadow:
-                      "0 8px 24px oklch(0.42 0.16 155 / 0.35), 0 2px 8px oklch(0.42 0.16 155 / 0.2)",
-                  }}
-                  data-ocid="admin.login.submit_button"
-                >
-                  {/* Shimmer overlay */}
-                  <span
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                  <Button
+                    type="submit"
+                    disabled={isLoggingIn}
+                    size="lg"
+                    className="w-full h-14 text-base font-bold text-white shadow-lg transition-all duration-300 group relative overflow-hidden rounded-xl"
                     style={{
                       background:
-                        "linear-gradient(105deg, transparent 30%, oklch(1 0 0 / 0.15) 50%, transparent 70%)",
+                        "linear-gradient(135deg, oklch(0.42 0.16 155) 0%, oklch(0.36 0.14 165) 100%)",
+                      boxShadow:
+                        "0 8px 24px oklch(0.42 0.16 155 / 0.35), 0 2px 8px oklch(0.42 0.16 155 / 0.2)",
                     }}
-                  />
-                  {isLoggingIn ? (
-                    <span className="flex items-center gap-2 relative z-10">
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      যাচাই করা হচ্ছে...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2 relative z-10">
-                      <ShieldCheck className="w-5 h-5" />
-                      লগইন করুন
-                      <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1.5" />
-                    </span>
-                  )}
-                </Button>
-              </motion.form>
+                    data-ocid="admin.login.submit_button"
+                  >
+                    <span
+                      className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                      style={{
+                        background:
+                          "linear-gradient(105deg, transparent 30%, oklch(1 0 0 / 0.15) 50%, transparent 70%)",
+                      }}
+                    />
+                    {isLoggingIn ? (
+                      <span className="flex items-center gap-2 relative z-10">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        যাচাই করা হচ্ছে...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2 relative z-10">
+                        <ShieldCheck className="w-5 h-5" />
+                        লগইন করুন
+                        <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1.5" />
+                      </span>
+                    )}
+                  </Button>
+                </motion.form>
+              )}
+
+              {/* ─── Forgot Password Form ─── */}
+              {view === "forgot" && (
+                <motion.div
+                  key="forgot-form"
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  {/* Reset code info box */}
+                  <div
+                    className="rounded-xl p-4 mb-5 flex gap-3"
+                    style={{
+                      background: "oklch(0.96 0.03 78)",
+                      border: "1px solid oklch(0.88 0.08 78)",
+                      borderLeft: "4px solid oklch(0.65 0.18 78)",
+                    }}
+                  >
+                    <AlertTriangle
+                      className="w-4 h-4 flex-shrink-0 mt-0.5"
+                      style={{ color: "oklch(0.55 0.16 78)" }}
+                    />
+                    <div>
+                      <p
+                        className="text-xs font-bold mb-0.5"
+                        style={{ color: "oklch(0.38 0.12 78)" }}
+                      >
+                        রিসেট কোড
+                      </p>
+                      <p
+                        className="text-xs leading-relaxed"
+                        style={{ color: "oklch(0.45 0.08 78)" }}
+                      >
+                        ডিফল্ট রিসেট কোড: <strong>JOMI2024</strong>
+                        <br />
+                        এই কোড দিয়ে নতুন পাসওয়ার্ড সেট করুন।
+                      </p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleForgotReset} className="space-y-4">
+                    <div className="space-y-1.5">
+                      <Label
+                        className="text-sm font-semibold"
+                        style={{ color: "oklch(0.28 0.06 155)" }}
+                      >
+                        রিসেট কোড
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <KeyRound
+                            className="w-4 h-4"
+                            style={{ color: "oklch(0.60 0.06 240)" }}
+                          />
+                        </span>
+                        <input
+                          type="text"
+                          value={resetCode}
+                          onChange={(e) =>
+                            setResetCode(e.target.value.toUpperCase())
+                          }
+                          placeholder="রিসেট কোড লিখুন"
+                          required
+                          data-ocid="admin.forgot.reset_code.input"
+                          className="w-full h-12 pl-10 pr-4 rounded-xl border text-sm outline-none transition-all font-mono tracking-widest"
+                          style={{
+                            borderColor: "oklch(0.88 0.04 240)",
+                            background: "oklch(0.98 0.005 240)",
+                            color: "oklch(0.20 0.06 240)",
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor =
+                              "oklch(0.55 0.16 78)";
+                            e.currentTarget.style.boxShadow =
+                              "0 0 0 3px oklch(0.55 0.16 78 / 0.15)";
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor =
+                              "oklch(0.88 0.04 240)";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label
+                        className="text-sm font-semibold"
+                        style={{ color: "oklch(0.28 0.06 155)" }}
+                      >
+                        নতুন পাসওয়ার্ড
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <LockKeyhole
+                            className="w-4 h-4"
+                            style={{ color: "oklch(0.60 0.06 240)" }}
+                          />
+                        </span>
+                        <input
+                          type={showNewPw ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="নতুন পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)"
+                          required
+                          minLength={6}
+                          data-ocid="admin.forgot.new_password.input"
+                          className="w-full h-12 pl-10 pr-11 rounded-xl border text-sm outline-none transition-all"
+                          style={{
+                            borderColor: "oklch(0.88 0.04 240)",
+                            background: "oklch(0.98 0.005 240)",
+                            color: "oklch(0.20 0.06 240)",
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor =
+                              "oklch(0.45 0.16 155)";
+                            e.currentTarget.style.boxShadow =
+                              "0 0 0 3px oklch(0.45 0.16 155 / 0.15)";
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor =
+                              "oklch(0.88 0.04 240)";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPw((p) => !p)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-black/5"
+                          tabIndex={-1}
+                        >
+                          {showNewPw ? (
+                            <EyeOff
+                              className="w-4 h-4"
+                              style={{ color: "oklch(0.60 0.06 240)" }}
+                            />
+                          ) : (
+                            <Eye
+                              className="w-4 h-4"
+                              style={{ color: "oklch(0.60 0.06 240)" }}
+                            />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label
+                        className="text-sm font-semibold"
+                        style={{ color: "oklch(0.28 0.06 155)" }}
+                      >
+                        পাসওয়ার্ড নিশ্চিত করুন
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                          <LockKeyhole
+                            className="w-4 h-4"
+                            style={{ color: "oklch(0.60 0.06 240)" }}
+                          />
+                        </span>
+                        <input
+                          type={showConfirmPw ? "text" : "password"}
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          placeholder="পাসওয়ার্ড পুনরায় লিখুন"
+                          required
+                          data-ocid="admin.forgot.confirm_password.input"
+                          className="w-full h-12 pl-10 pr-11 rounded-xl border text-sm outline-none transition-all"
+                          style={{
+                            borderColor:
+                              confirmPassword && confirmPassword !== newPassword
+                                ? "oklch(0.55 0.18 27)"
+                                : "oklch(0.88 0.04 240)",
+                            background: "oklch(0.98 0.005 240)",
+                            color: "oklch(0.20 0.06 240)",
+                          }}
+                          onFocus={(e) => {
+                            e.currentTarget.style.borderColor =
+                              "oklch(0.45 0.16 155)";
+                            e.currentTarget.style.boxShadow =
+                              "0 0 0 3px oklch(0.45 0.16 155 / 0.15)";
+                          }}
+                          onBlur={(e) => {
+                            e.currentTarget.style.borderColor =
+                              confirmPassword && confirmPassword !== newPassword
+                                ? "oklch(0.55 0.18 27)"
+                                : "oklch(0.88 0.04 240)";
+                            e.currentTarget.style.boxShadow = "none";
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPw((p) => !p)}
+                          className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-black/5"
+                          tabIndex={-1}
+                        >
+                          {showConfirmPw ? (
+                            <EyeOff
+                              className="w-4 h-4"
+                              style={{ color: "oklch(0.60 0.06 240)" }}
+                            />
+                          ) : (
+                            <Eye
+                              className="w-4 h-4"
+                              style={{ color: "oklch(0.60 0.06 240)" }}
+                            />
+                          )}
+                        </button>
+                      </div>
+                      {confirmPassword && confirmPassword !== newPassword && (
+                        <p
+                          className="text-xs"
+                          style={{ color: "oklch(0.50 0.16 27)" }}
+                        >
+                          পাসওয়ার্ড মিলছে না
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex gap-3">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => {
+                          setView("login");
+                          setResetCode("");
+                          setNewPassword("");
+                          setConfirmPassword("");
+                        }}
+                        className="flex-1 h-12 rounded-xl font-semibold"
+                        data-ocid="admin.forgot.back.button"
+                      >
+                        ← ফিরে যান
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={isResetting}
+                        className="flex-1 h-12 rounded-xl font-bold text-white"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, oklch(0.42 0.16 155) 0%, oklch(0.36 0.14 165) 100%)",
+                        }}
+                        data-ocid="admin.forgot.submit_button"
+                      >
+                        {isResetting ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            পরিবর্তন হচ্ছে...
+                          </>
+                        ) : (
+                          "পাসওয়ার্ড পরিবর্তন করুন"
+                        )}
+                      </Button>
+                    </div>
+                  </form>
+                </motion.div>
+              )}
+
+              {/* ─── Reset Success ─── */}
+              {view === "reset_success" && (
+                <motion.div
+                  key="reset-success"
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center py-4"
+                >
+                  <div
+                    className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, oklch(0.45 0.16 155), oklch(0.55 0.14 155))",
+                    }}
+                  >
+                    <Check className="w-8 h-8 text-white" strokeWidth={2.5} />
+                  </div>
+                  <h3
+                    className="text-lg font-bold mb-2"
+                    style={{ color: "oklch(0.22 0.08 155)" }}
+                  >
+                    পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে!
+                  </h3>
+                  <p
+                    className="text-sm mb-6"
+                    style={{ color: "oklch(0.52 0.04 240)" }}
+                  >
+                    এখন নতুন পাসওয়ার্ড দিয়ে লগইন করুন।
+                  </p>
+                  <Button
+                    onClick={() => {
+                      setView("login");
+                      setPassword("");
+                    }}
+                    className="w-full h-12 rounded-xl font-bold text-white"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, oklch(0.42 0.16 155) 0%, oklch(0.36 0.14 165) 100%)",
+                    }}
+                    data-ocid="admin.reset_success.login.button"
+                  >
+                    লগইন পেজে যান
+                  </Button>
+                </motion.div>
+              )}
 
               {/* Social proof */}
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.42 }}
-                className="mt-4 flex items-center justify-center gap-4"
-              >
-                <div className="flex items-center gap-1.5">
-                  <Users
-                    className="w-3 h-3"
-                    style={{ color: "oklch(0.62 0.04 240)" }}
+              {view === "login" && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.42 }}
+                  className="mt-4 flex items-center justify-center gap-4"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Users
+                      className="w-3 h-3"
+                      style={{ color: "oklch(0.62 0.04 240)" }}
+                    />
+                    <p
+                      className="text-xs"
+                      style={{ color: "oklch(0.56 0.04 240)" }}
+                    >
+                      ১,২০০+ সক্রিয় ব্যবহারকারী
+                    </p>
+                  </div>
+                  <div
+                    className="w-px h-3"
+                    style={{ background: "oklch(0.88 0.02 240)" }}
                   />
-                  <p
-                    className="text-xs"
-                    style={{ color: "oklch(0.56 0.04 240)" }}
-                  >
-                    ১,২০০+ সক্রিয় ব্যবহারকারী
-                  </p>
-                </div>
-                <div
-                  className="w-px h-3"
-                  style={{ background: "oklch(0.88 0.02 240)" }}
-                />
-                <div className="flex items-center gap-1.5">
-                  <LockKeyhole
-                    className="w-3 h-3"
-                    style={{ color: "oklch(0.62 0.04 240)" }}
-                  />
-                  <p
-                    className="text-xs"
-                    style={{ color: "oklch(0.56 0.04 240)" }}
-                  >
-                    256-bit এনক্রিপশন
-                  </p>
-                </div>
-              </motion.div>
+                  <div className="flex items-center gap-1.5">
+                    <LockKeyhole
+                      className="w-3 h-3"
+                      style={{ color: "oklch(0.62 0.04 240)" }}
+                    />
+                    <p
+                      className="text-xs"
+                      style={{ color: "oklch(0.56 0.04 240)" }}
+                    >
+                      256-bit এনক্রিপশন
+                    </p>
+                  </div>
+                </motion.div>
+              )}
             </div>
           </div>
 
@@ -2546,6 +3030,327 @@ function SiteSettingsManagement() {
   );
 }
 
+// ===== ACCOUNT / CHANGE PASSWORD MANAGEMENT =====
+function AccountManagement() {
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [confirmPw, setConfirmPw] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const creds = getAdminCredentials();
+    if (currentPw !== creds.password) {
+      toast.error("বর্তমান পাসওয়ার্ড সঠিক নয়");
+      return;
+    }
+    if (newPw.length < 6) {
+      toast.error("নতুন পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে");
+      return;
+    }
+    if (newPw !== confirmPw) {
+      toast.error("নতুন পাসওয়ার্ড মিলছে না");
+      return;
+    }
+    if (newPw === currentPw) {
+      toast.error("নতুন পাসওয়ার্ড আগেরটির মতো হতে পারবে না");
+      return;
+    }
+    setIsSaving(true);
+    await new Promise((r) => setTimeout(r, 500));
+    saveAdminCredentials(creds.username, newPw);
+    setCurrentPw("");
+    setNewPw("");
+    setConfirmPw("");
+    setIsSaving(false);
+    toast.success("পাসওয়ার্ড সফলভাবে পরিবর্তিত হয়েছে");
+  };
+
+  const inputStyle = {
+    borderColor: "oklch(0.88 0.04 240)",
+    background: "oklch(0.98 0.005 240)",
+    color: "oklch(0.20 0.06 240)",
+  };
+  const focusStyle = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = "oklch(0.45 0.16 155)";
+    e.currentTarget.style.boxShadow = "0 0 0 3px oklch(0.45 0.16 155 / 0.15)";
+  };
+  const blurStyle = (e: React.FocusEvent<HTMLInputElement>) => {
+    e.currentTarget.style.borderColor = "oklch(0.88 0.04 240)";
+    e.currentTarget.style.boxShadow = "none";
+  };
+
+  return (
+    <div className="max-w-lg">
+      {/* Info banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="rounded-2xl p-5 mb-6 relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.97 0.02 155) 0%, oklch(0.99 0.01 155) 100%)",
+          border: "1px solid oklch(0.90 0.05 155)",
+          borderLeft: "4px solid oklch(0.45 0.16 155)",
+        }}
+      >
+        <div
+          className="absolute -right-6 -top-6 w-20 h-20 rounded-full opacity-10"
+          style={{ background: "oklch(0.45 0.16 155)" }}
+        />
+        <div className="flex items-start gap-3 relative z-10">
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.45 0.16 155), oklch(0.38 0.14 165))",
+            }}
+          >
+            <LockKeyhole className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h4
+              className="font-bold text-sm mb-0.5"
+              style={{ color: "oklch(0.22 0.08 155)" }}
+            >
+              পাসওয়ার্ড পরিবর্তন
+            </h4>
+            <p
+              className="text-xs leading-relaxed"
+              style={{ color: "oklch(0.45 0.08 155)" }}
+            >
+              নিরাপত্তার জন্য নিয়মিত পাসওয়ার্ড পরিবর্তন করুন। ডিফল্ট রিসেট কোড:{" "}
+              <strong>JOMI2024</strong>
+            </p>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Change password form */}
+      <motion.form
+        onSubmit={handleChangePassword}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="bg-white rounded-2xl border border-border shadow-card p-6 space-y-5"
+      >
+        <FormSection label="বর্তমান পাসওয়ার্ড" color="oklch(0.52 0.16 240)" />
+
+        <div className="space-y-1.5">
+          <FormLabel required>বর্তমান পাসওয়ার্ড</FormLabel>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+              <LockKeyhole
+                className="w-4 h-4"
+                style={{ color: "oklch(0.60 0.06 240)" }}
+              />
+            </span>
+            <input
+              type={showCurrent ? "text" : "password"}
+              value={currentPw}
+              onChange={(e) => setCurrentPw(e.target.value)}
+              placeholder="বর্তমান পাসওয়ার্ড লিখুন"
+              required
+              data-ocid="admin.account.current_password.input"
+              className="w-full h-12 pl-10 pr-11 rounded-xl border text-sm outline-none transition-all"
+              style={inputStyle}
+              onFocus={focusStyle}
+              onBlur={blurStyle}
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrent((p) => !p)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-black/5"
+              tabIndex={-1}
+            >
+              {showCurrent ? (
+                <EyeOff
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.60 0.06 240)" }}
+                />
+              ) : (
+                <Eye
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.60 0.06 240)" }}
+                />
+              )}
+            </button>
+          </div>
+        </div>
+
+        <FormSection label="নতুন পাসওয়ার্ড" color="oklch(0.45 0.16 155)" />
+
+        <div className="space-y-1.5">
+          <FormLabel required>নতুন পাসওয়ার্ড</FormLabel>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+              <KeyRound
+                className="w-4 h-4"
+                style={{ color: "oklch(0.60 0.06 240)" }}
+              />
+            </span>
+            <input
+              type={showNew ? "text" : "password"}
+              value={newPw}
+              onChange={(e) => setNewPw(e.target.value)}
+              placeholder="নতুন পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)"
+              required
+              minLength={6}
+              data-ocid="admin.account.new_password.input"
+              className="w-full h-12 pl-10 pr-11 rounded-xl border text-sm outline-none transition-all"
+              style={inputStyle}
+              onFocus={focusStyle}
+              onBlur={blurStyle}
+            />
+            <button
+              type="button"
+              onClick={() => setShowNew((p) => !p)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-black/5"
+              tabIndex={-1}
+            >
+              {showNew ? (
+                <EyeOff
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.60 0.06 240)" }}
+                />
+              ) : (
+                <Eye
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.60 0.06 240)" }}
+                />
+              )}
+            </button>
+          </div>
+          {/* Password strength hint */}
+          {newPw.length > 0 && (
+            <div className="flex items-center gap-2 mt-1">
+              {(["s1", "s2", "s3", "s4"] as const).map((key, i) => (
+                <div
+                  key={key}
+                  className="h-1 flex-1 rounded-full transition-all"
+                  style={{
+                    background:
+                      i < Math.min(Math.floor(newPw.length / 3), 4)
+                        ? newPw.length < 6
+                          ? "oklch(0.55 0.18 27)"
+                          : newPw.length < 10
+                            ? "oklch(0.65 0.18 78)"
+                            : "oklch(0.55 0.16 155)"
+                        : "oklch(0.92 0.02 240)",
+                  }}
+                />
+              ))}
+              <span
+                className="text-xs"
+                style={{ color: "oklch(0.55 0.04 240)" }}
+              >
+                {newPw.length < 6
+                  ? "দুর্বল"
+                  : newPw.length < 10
+                    ? "মাঝারি"
+                    : "শক্তিশালী"}
+              </span>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <FormLabel required>পাসওয়ার্ড নিশ্চিত করুন</FormLabel>
+          <div className="relative">
+            <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+              <LockKeyhole
+                className="w-4 h-4"
+                style={{ color: "oklch(0.60 0.06 240)" }}
+              />
+            </span>
+            <input
+              type={showConfirm ? "text" : "password"}
+              value={confirmPw}
+              onChange={(e) => setConfirmPw(e.target.value)}
+              placeholder="পাসওয়ার্ড পুনরায় লিখুন"
+              required
+              data-ocid="admin.account.confirm_password.input"
+              className="w-full h-12 pl-10 pr-11 rounded-xl border text-sm outline-none transition-all"
+              style={{
+                ...inputStyle,
+                borderColor:
+                  confirmPw && confirmPw !== newPw
+                    ? "oklch(0.55 0.18 27)"
+                    : confirmPw && confirmPw === newPw
+                      ? "oklch(0.55 0.16 155)"
+                      : "oklch(0.88 0.04 240)",
+              }}
+              onFocus={focusStyle}
+              onBlur={blurStyle}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirm((p) => !p)}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-lg hover:bg-black/5"
+              tabIndex={-1}
+            >
+              {showConfirm ? (
+                <EyeOff
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.60 0.06 240)" }}
+                />
+              ) : (
+                <Eye
+                  className="w-4 h-4"
+                  style={{ color: "oklch(0.60 0.06 240)" }}
+                />
+              )}
+            </button>
+          </div>
+          {confirmPw && confirmPw !== newPw && (
+            <p
+              className="text-xs flex items-center gap-1"
+              style={{ color: "oklch(0.50 0.16 27)" }}
+            >
+              <AlertTriangle className="w-3 h-3" /> পাসওয়ার্ড মিলছে না
+            </p>
+          )}
+          {confirmPw && confirmPw === newPw && newPw.length >= 6 && (
+            <p
+              className="text-xs flex items-center gap-1"
+              style={{ color: "oklch(0.45 0.16 155)" }}
+            >
+              <Check className="w-3 h-3" strokeWidth={3} /> পাসওয়ার্ড মিলেছে
+            </p>
+          )}
+        </div>
+
+        <Button
+          type="submit"
+          disabled={isSaving}
+          className="w-full h-12 rounded-xl font-bold text-white shadow-md mt-2"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.42 0.16 155) 0%, oklch(0.36 0.14 165) 100%)",
+            boxShadow: "0 4px 16px oklch(0.42 0.16 155 / 0.30)",
+          }}
+          data-ocid="admin.account.change_password.submit_button"
+        >
+          {isSaving ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              পরিবর্তন হচ্ছে...
+            </>
+          ) : (
+            <>
+              <ShieldCheck className="w-4 h-4 mr-2" />
+              পাসওয়ার্ড পরিবর্তন করুন
+            </>
+          )}
+        </Button>
+      </motion.form>
+    </div>
+  );
+}
+
 export function AdminPage() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const { data: listings } = useGetAllListings();
@@ -2826,7 +3631,7 @@ export function AdminPage() {
 
         {/* Management tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap h-auto">
             <TabsTrigger
               value="listings"
               data-ocid="admin.listings.tab"
@@ -2855,6 +3660,13 @@ export function AdminPage() {
             >
               <Palette className="w-4 h-4" /> সাইট সেটিংস
             </TabsTrigger>
+            <TabsTrigger
+              value="account"
+              data-ocid="admin.account.tab"
+              className="gap-1.5"
+            >
+              <Settings className="w-4 h-4" /> অ্যাকাউন্ট
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="listings">
@@ -2868,6 +3680,9 @@ export function AdminPage() {
           </TabsContent>
           <TabsContent value="settings">
             <SiteSettingsManagement />
+          </TabsContent>
+          <TabsContent value="account">
+            <AccountManagement />
           </TabsContent>
         </Tabs>
       </div>
