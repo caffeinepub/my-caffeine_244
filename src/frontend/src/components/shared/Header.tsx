@@ -4,6 +4,7 @@ import { useIsAdmin } from "@/hooks/useQueries";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import { LogIn, LogOut, MapPin, Menu, ShieldCheck, X } from "lucide-react";
+
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 
@@ -138,34 +139,49 @@ export function Header() {
 
             {/* Auth Button */}
             <div className="hidden md:flex items-center gap-2">
-              <Button
-                onClick={handleAuth}
-                disabled={isLoggingIn}
-                variant={isAuthenticated ? "outline" : "default"}
-                size="sm"
-                className={
-                  isAuthenticated
-                    ? ""
-                    : "bg-primary hover:bg-primary/90 shadow-green"
-                }
-              >
-                {isLoggingIn ? (
-                  <>
-                    <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                    লগইন হচ্ছে...
-                  </>
-                ) : isAuthenticated ? (
-                  <>
-                    <LogOut className="w-4 h-4 mr-1.5" />
-                    লগআউট
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="w-4 h-4 mr-1.5" />
-                    লগইন করুন
-                  </>
-                )}
-              </Button>
+              {isLoggingIn ? (
+                <Button disabled variant="outline" size="sm">
+                  <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                  লগইন হচ্ছে...
+                </Button>
+              ) : isAuthenticated ? (
+                <div className="flex items-center gap-2">
+                  <div className="relative">
+                    <div
+                      className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary"
+                      title={identity?.getPrincipal().toString()}
+                    >
+                      {identity
+                        ?.getPrincipal()
+                        .toString()
+                        .slice(0, 2)
+                        .toUpperCase()}
+                    </div>
+                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
+                  </div>
+                  <Button
+                    onClick={handleAuth}
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    data-ocid="header.logout_button"
+                  >
+                    <LogOut className="w-4 h-4" /> লগআউট
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={handleAuth}
+                  disabled={isLoggingIn}
+                  variant="default"
+                  size="sm"
+                  className="bg-primary hover:bg-primary/90 shadow-green"
+                  data-ocid="header.login_button"
+                >
+                  <LogIn className="w-4 h-4 mr-1.5" />
+                  লগইন করুন
+                </Button>
+              )}
             </div>
 
             {/* Mobile hamburger */}

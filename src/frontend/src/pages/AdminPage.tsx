@@ -5,7 +5,6 @@ import {
   Dialog,
   DialogContent,
   DialogFooter,
-  DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -52,16 +51,19 @@ import {
   getUpazilasForDistrict,
 } from "@/utils/bangladeshData";
 import { formatBDT, getLandTypeLabel, getStatusLabel } from "@/utils/format";
-import { useQueryClient } from "@tanstack/react-query";
+import type React from "react";
+
 import { Link } from "@tanstack/react-router";
 import {
+  ArrowRight,
+  Check,
+  ChevronRight,
+  Home,
   Info,
   Loader2,
   LockKeyhole,
-  LogIn,
   LogOut,
   MapPin,
-  MessageSquare,
   Newspaper,
   Pencil,
   Plus,
@@ -70,11 +72,135 @@ import {
   Star,
   Trash2,
   TrendingUp,
+  Users,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+// ─── Styled Form Section Divider ────────────────────────────────────────────
+function FormSection({
+  label,
+  color = "oklch(0.55 0.14 240)",
+}: {
+  label: string;
+  color?: string;
+}) {
+  return (
+    <div className="col-span-2 flex items-center gap-3 mt-4 mb-1">
+      <div
+        className="w-1 h-5 rounded-full flex-shrink-0"
+        style={{ background: color }}
+      />
+      <span
+        className="text-xs font-bold uppercase tracking-widest"
+        style={{ color }}
+      >
+        {label}
+      </span>
+      <div
+        className="h-px flex-1"
+        style={{ background: `${color.replace(")", " / 0.15)")}` }}
+      />
+    </div>
+  );
+}
+
+// ─── Styled Form Label ────────────────────────────────────────────────────
+function FormLabel({
+  children,
+  required,
+}: {
+  children: React.ReactNode;
+  required?: boolean;
+}) {
+  return (
+    <Label className="text-sm font-semibold text-foreground/80 mb-1 block">
+      {children}
+      {required && <span className="ml-0.5 text-rose-500 font-bold">*</span>}
+    </Label>
+  );
+}
+
+// ─── Dialog Form Header ────────────────────────────────────────────────────
+function FormDialogHeader({
+  title,
+  icon: Icon,
+  gradientFrom,
+  gradientTo,
+}: {
+  title: string;
+  icon: React.ElementType;
+  gradientFrom: string;
+  gradientTo: string;
+}) {
+  return (
+    <div
+      className="relative -mx-6 -mt-6 mb-6 px-6 pt-6 pb-5 overflow-hidden rounded-t-2xl"
+      style={{
+        background: `linear-gradient(135deg, ${gradientFrom} 0%, ${gradientTo} 100%)`,
+      }}
+    >
+      {/* Decorative circle */}
+      <div
+        className="absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-20"
+        style={{ background: "white" }}
+      />
+      <div className="flex items-center gap-3 relative z-10">
+        <div
+          className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: "oklch(1 0 0 / 0.18)" }}
+        >
+          <Icon className="w-5 h-5 text-white" />
+        </div>
+        <div>
+          <DialogTitle className="text-white text-lg font-bold leading-tight">
+            {title}
+          </DialogTitle>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: "oklch(1 0 0 / 0.65)" }}
+          >
+            সকল তথ্য সঠিকভাবে পূরণ করুন
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Dialog Form Shell (entry animation wrapper) ──────────────────────────
+function FormDialogShell({
+  children,
+  title,
+  icon: Icon,
+  gradientFrom,
+  gradientTo,
+}: {
+  children: React.ReactNode;
+  title: string;
+  icon: React.ElementType;
+  gradientFrom: string;
+  gradientTo: string;
+}) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.28, ease: "easeOut" }}
+    >
+      <FormDialogHeader
+        title={title}
+        icon={Icon}
+        gradientFrom={gradientFrom}
+        gradientTo={gradientTo}
+      />
+      {children}
+    </motion.div>
+  );
+}
+
+// ─── Admin Login ────────────────────────────────────────────────────────────
 function AdminLogin() {
   const { login, loginStatus } = useInternetIdentity();
   const isLoggingIn = loginStatus === "logging-in";
@@ -84,45 +210,104 @@ function AdminLogin() {
       icon: ShieldCheck,
       title: "নিরাপদ যাচাইকরণ",
       desc: "Internet Identity দিয়ে সুরক্ষিত অ্যাক্সেস",
+      iconBg: "oklch(0.35 0.12 155 / 0.30)",
+      iconColor: "oklch(0.82 0.18 78)",
     },
     {
       icon: MapPin,
       title: "লিস্টিং পরিচালনা",
       desc: "সকল জমির বিজ্ঞাপন সরাসরি নিয়ন্ত্রণ",
+      iconBg: "oklch(0.35 0.12 240 / 0.25)",
+      iconColor: "oklch(0.75 0.16 200)",
     },
     {
       icon: Scale,
       title: "আইনি তথ্য ব্যবস্থাপনা",
       desc: "আইনজীবী ও নথিপত্র সম্পূর্ণ নিয়ন্ত্রণ",
+      iconBg: "oklch(0.35 0.12 300 / 0.25)",
+      iconColor: "oklch(0.78 0.14 290)",
     },
   ];
+
+  const adminCapabilities = [
+    "জমির লিস্টিং পরিচালনা",
+    "আইনজীবী ব্যবস্থাপনা",
+    "সংবাদ প্রকাশনা",
+  ];
+
+  const platformStats = [
+    { label: "১০,০০০+ জমির তালিকা", icon: MapPin },
+    { label: "৫০০+ যাচাইকৃত বিক্রেতা", icon: ShieldCheck },
+    { label: "৬৪ জেলায় সেবা", icon: Star },
+  ];
+
+  const avatarColors = [
+    "oklch(0.65 0.16 78)",
+    "oklch(0.60 0.14 155)",
+    "oklch(0.55 0.14 280)",
+  ];
+  const avatarInitials = ["রা", "সা", "মো"];
 
   return (
     <div className="min-h-screen flex">
       {/* ── Left Branding Panel ── */}
-      <div className="hidden lg:flex lg:w-[48%] xl:w-[52%] relative bg-primary flex-col justify-between p-12 overflow-hidden">
-        {/* Decorative circles */}
-        <div
+      <div
+        className="hidden lg:flex lg:w-[48%] xl:w-[52%] relative flex-col justify-between p-12 overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(160deg, oklch(0.16 0.10 155) 0%, oklch(0.12 0.08 165) 45%, oklch(0.18 0.12 145) 100%)",
+        }}
+      >
+        {/* Animated blob 1 */}
+        <motion.div
           className="absolute -top-24 -right-24 w-96 h-96 rounded-full"
-          style={{
-            background: "oklch(1 0 0 / 0.04)",
+          style={{ background: "oklch(0.55 0.16 155 / 0.10)" }}
+          animate={{ scale: [1, 1.08, 1], opacity: [0.1, 0.16, 0.1] }}
+          transition={{
+            duration: 7,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "easeInOut",
           }}
         />
-        <div
+        {/* Animated blob 2 */}
+        <motion.div
           className="absolute top-1/3 -left-16 w-64 h-64 rounded-full"
-          style={{ background: "oklch(1 0 0 / 0.03)" }}
+          style={{ background: "oklch(0.65 0.18 78 / 0.08)" }}
+          animate={{ scale: [1, 1.12, 1], opacity: [0.08, 0.14, 0.08] }}
+          transition={{
+            duration: 9,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "easeInOut",
+            delay: 2,
+          }}
         />
-        <div
+        {/* Animated blob 3 */}
+        <motion.div
           className="absolute -bottom-16 right-12 w-80 h-80 rounded-full"
-          style={{ background: "oklch(1 0 0 / 0.05)" }}
+          style={{ background: "oklch(0.55 0.14 280 / 0.09)" }}
+          animate={{ scale: [1, 1.06, 1], opacity: [0.09, 0.13, 0.09] }}
+          transition={{
+            duration: 11,
+            repeat: Number.POSITIVE_INFINITY,
+            ease: "easeInOut",
+            delay: 4,
+          }}
         />
         {/* Subtle grid pattern */}
         <div
-          className="absolute inset-0 opacity-[0.06]"
+          className="absolute inset-0 opacity-[0.035]"
           style={{
             backgroundImage:
               "linear-gradient(oklch(1 0 0 / 1) 1px, transparent 1px), linear-gradient(90deg, oklch(1 0 0 / 1) 1px, transparent 1px)",
             backgroundSize: "40px 40px",
+          }}
+        />
+        {/* Top shimmer line */}
+        <div
+          className="absolute top-0 left-0 right-0 h-px"
+          style={{
+            background:
+              "linear-gradient(90deg, transparent, oklch(0.85 0.18 78 / 0.6), transparent)",
           }}
         />
 
@@ -135,12 +320,16 @@ function AdminLogin() {
         >
           <div className="flex items-center gap-3 mb-2">
             <div
-              className="w-12 h-12 rounded-xl flex items-center justify-center"
-              style={{ background: "oklch(1 0 0 / 0.12)" }}
+              className="w-13 h-13 rounded-2xl flex items-center justify-center shadow-lg"
+              style={{
+                background:
+                  "linear-gradient(135deg, oklch(0.65 0.18 78 / 0.25) 0%, oklch(0.55 0.14 155 / 0.30) 100%)",
+                border: "1px solid oklch(1 0 0 / 0.12)",
+              }}
             >
               <MapPin
-                className="w-6 h-6"
-                style={{ color: "oklch(0.88 0.16 78)" }}
+                className="w-7 h-7"
+                style={{ color: "oklch(0.85 0.20 78)" }}
               />
             </div>
             <div>
@@ -154,8 +343,8 @@ function AdminLogin() {
                 জমিবাজার
               </span>
               <div
-                className="text-xs font-medium tracking-widest uppercase"
-                style={{ color: "oklch(1 0 0 / 0.5)" }}
+                className="text-[10px] font-bold tracking-[0.18em] uppercase"
+                style={{ color: "oklch(0.85 0.18 78 / 0.85)" }}
               >
                 Bangladesh Land Marketplace
               </div>
@@ -179,13 +368,23 @@ function AdminLogin() {
           >
             বাংলাদেশের সেরা
             <br />
-            <span style={{ color: "oklch(0.88 0.16 78)" }}>ডিজিটাল জমি</span>
+            <span
+              style={{
+                background:
+                  "linear-gradient(90deg, oklch(0.85 0.20 78), oklch(0.82 0.18 60))",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              ডিজিটাল জমি
+            </span>
             <br />
             মার্কেটপ্লেস
           </h2>
           <p
             className="text-sm leading-relaxed mb-8"
-            style={{ color: "oklch(1 0 0 / 0.55)" }}
+            style={{ color: "oklch(1 0 0 / 0.50)" }}
           >
             সরাসরি মালিকের সাথে কেনাবেচা — দালাল ছাড়া, ঝামেলা ছাড়া
           </p>
@@ -197,16 +396,16 @@ function AdminLogin() {
                 initial={{ opacity: 0, x: -16 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 + i * 0.1 }}
-                className="flex items-start gap-3"
+                className="flex items-start gap-3 group"
               >
                 <div
-                  className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5"
-                  style={{ background: "oklch(1 0 0 / 0.1)" }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 transition-all duration-300 group-hover:scale-110"
+                  style={{
+                    background: f.iconBg,
+                    border: "1px solid oklch(1 0 0 / 0.08)",
+                  }}
                 >
-                  <f.icon
-                    className="w-4 h-4"
-                    style={{ color: "oklch(0.88 0.16 78)" }}
-                  />
+                  <f.icon className="w-5 h-5" style={{ color: f.iconColor }} />
                 </div>
                 <div>
                   <div
@@ -216,8 +415,8 @@ function AdminLogin() {
                     {f.title}
                   </div>
                   <div
-                    className="text-xs mt-0.5"
-                    style={{ color: "oklch(1 0 0 / 0.5)" }}
+                    className="text-xs mt-0.5 leading-relaxed"
+                    style={{ color: "oklch(1 0 0 / 0.42)" }}
                   >
                     {f.desc}
                   </div>
@@ -225,24 +424,80 @@ function AdminLogin() {
               </motion.div>
             ))}
           </div>
+
+          {/* Trusted by */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.65 }}
+            className="mt-8 flex items-center gap-3"
+          >
+            <div className="flex -space-x-2">
+              {avatarInitials.map((init, i) => (
+                <div
+                  key={init}
+                  className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold shadow-sm"
+                  style={{
+                    background: avatarColors[i],
+                    borderColor: "oklch(0.16 0.10 155)",
+                    color: "white",
+                  }}
+                >
+                  {init}
+                </div>
+              ))}
+            </div>
+            <span className="text-xs" style={{ color: "oklch(1 0 0 / 0.45)" }}>
+              ১,২০০+ সক্রিয় ব্যবহারকারী বিশ্বাস করেন
+            </span>
+          </motion.div>
         </motion.div>
 
-        {/* Bottom copyright */}
+        {/* Platform stats strip */}
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.7 }}
-          className="relative z-10"
-          style={{ color: "oklch(1 0 0 / 0.35)" }}
+          className="relative z-10 mt-8"
         >
-          <p className="text-xs">
+          <div
+            className="rounded-2xl p-4 mb-4"
+            style={{
+              background: "oklch(1 0 0 / 0.05)",
+              border: "1px solid oklch(1 0 0 / 0.08)",
+            }}
+          >
+            <div className="flex flex-wrap gap-2">
+              {platformStats.map((stat) => (
+                <div
+                  key={stat.label}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+                  style={{
+                    background: "oklch(1 0 0 / 0.07)",
+                    color: "oklch(0.88 0.06 120)",
+                    border: "1px solid oklch(1 0 0 / 0.10)",
+                  }}
+                >
+                  <stat.icon
+                    className="w-3 h-3"
+                    style={{ color: "oklch(0.85 0.18 78)" }}
+                  />
+                  {stat.label}
+                </div>
+              ))}
+            </div>
+          </div>
+          <p className="text-xs" style={{ color: "oklch(1 0 0 / 0.28)" }}>
             © {new Date().getFullYear()} জমিবাজার। সর্বস্বত্ব সংরক্ষিত।
           </p>
         </motion.div>
       </div>
 
       {/* ── Right Login Panel ── */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-10 bg-background">
+      <div
+        className="flex-1 flex items-center justify-center p-6 sm:p-10"
+        style={{ background: "oklch(0.98 0.005 120)" }}
+      >
         <motion.div
           initial={{ opacity: 0, y: 24 }}
           animate={{ opacity: 1, y: 0 }}
@@ -251,137 +506,268 @@ function AdminLogin() {
         >
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-2 mb-8">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center">
-              <MapPin className="w-5 h-5 text-primary-foreground" />
+            <div
+              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              style={{
+                background:
+                  "linear-gradient(135deg, oklch(0.45 0.16 155), oklch(0.38 0.14 160))",
+              }}
+            >
+              <MapPin className="w-5 h-5 text-white" />
             </div>
             <span
-              className="text-xl font-extrabold text-foreground"
-              style={{ fontFamily: "'Bricolage Grotesque', system-ui" }}
+              className="text-xl font-extrabold"
+              style={{
+                fontFamily: "'Bricolage Grotesque', system-ui",
+                color: "oklch(0.22 0.08 155)",
+              }}
             >
               জমিবাজার
             </span>
           </div>
 
-          {/* Card */}
-          <div className="bg-card rounded-2xl border border-border shadow-card p-8 sm:p-10">
-            {/* Badge */}
-            <div className="mb-6">
-              <span
-                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-widest px-3 py-1.5 rounded-full border"
+          {/* Main Card */}
+          <div
+            className="rounded-3xl overflow-hidden shadow-2xl"
+            style={{
+              background: "oklch(1 0 0)",
+              border: "1px solid oklch(0.91 0.02 240)",
+              boxShadow:
+                "0 24px 64px -12px oklch(0.45 0.16 155 / 0.12), 0 4px 16px oklch(0 0 0 / 0.06)",
+            }}
+          >
+            {/* Card top accent bar */}
+            <div
+              className="h-1.5 w-full"
+              style={{
+                background:
+                  "linear-gradient(90deg, oklch(0.45 0.16 155), oklch(0.65 0.18 78), oklch(0.55 0.14 300))",
+              }}
+            />
+
+            <div className="p-8 sm:p-10">
+              {/* Badge */}
+              <motion.div
+                initial={{ opacity: 0, scale: 0.85 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.05 }}
+                className="mb-6"
+              >
+                <span
+                  className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.15em] px-4 py-2 rounded-full"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, oklch(0.45 0.16 155 / 0.10), oklch(0.55 0.14 155 / 0.06))",
+                    border: "1px solid oklch(0.45 0.16 155 / 0.22)",
+                    color: "oklch(0.38 0.14 155)",
+                  }}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  অ্যাডমিন পোর্টাল
+                </span>
+              </motion.div>
+
+              {/* Heading */}
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.12 }}
+                className="mb-6"
+              >
+                <h1
+                  className="text-3xl font-extrabold mb-2"
+                  style={{
+                    fontFamily: "'Bricolage Grotesque', system-ui",
+                    color: "oklch(0.16 0.06 155)",
+                  }}
+                >
+                  স্বাগতম,{" "}
+                  <span
+                    style={{
+                      background:
+                        "linear-gradient(90deg, oklch(0.45 0.16 155), oklch(0.42 0.14 185))",
+                      WebkitBackgroundClip: "text",
+                      WebkitTextFillColor: "transparent",
+                      backgroundClip: "text",
+                    }}
+                  >
+                    অ্যাডমিন
+                  </span>
+                </h1>
+                <p
+                  className="text-sm leading-relaxed"
+                  style={{ color: "oklch(0.52 0.04 240)" }}
+                >
+                  অ্যাডমিন প্যানেল পরিচালনার জন্য আপনার পরিচয় যাচাই করুন
+                </p>
+              </motion.div>
+
+              {/* Admin capabilities checklist */}
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.18 }}
+                className="mb-6 rounded-2xl p-4 space-y-2.5"
                 style={{
-                  background: "oklch(var(--primary) / 0.08)",
-                  borderColor: "oklch(var(--primary) / 0.2)",
-                  color: "oklch(var(--primary))",
+                  background: "oklch(0.97 0.01 155)",
+                  border: "1px solid oklch(0.92 0.04 155)",
                 }}
               >
-                <ShieldCheck className="w-3 h-3" />
-                অ্যাডমিন পোর্টাল
-              </span>
+                {adminCapabilities.map((cap, i) => (
+                  <motion.div
+                    key={cap}
+                    initial={{ opacity: 0, x: -8 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.22 + i * 0.06 }}
+                    className="flex items-center gap-3"
+                  >
+                    <div
+                      className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0"
+                      style={{
+                        background:
+                          "linear-gradient(135deg, oklch(0.45 0.16 155), oklch(0.52 0.14 155))",
+                      }}
+                    >
+                      <Check
+                        className="w-2.5 h-2.5 text-white"
+                        strokeWidth={3}
+                      />
+                    </div>
+                    <span
+                      className="text-sm font-medium"
+                      style={{ color: "oklch(0.30 0.08 155)" }}
+                    >
+                      {cap}
+                    </span>
+                  </motion.div>
+                ))}
+              </motion.div>
+
+              {/* Info box */}
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.28 }}
+                className="rounded-xl p-4 mb-6 flex gap-3"
+                style={{
+                  background: "oklch(0.96 0.02 215)",
+                  border: "1px solid oklch(0.88 0.06 215)",
+                  borderLeft: "4px solid oklch(0.55 0.14 215)",
+                }}
+              >
+                <Info
+                  className="w-4 h-4 flex-shrink-0 mt-0.5"
+                  style={{ color: "oklch(0.48 0.14 215)" }}
+                />
+                <div>
+                  <p
+                    className="text-xs font-bold mb-0.5"
+                    style={{ color: "oklch(0.32 0.12 215)" }}
+                  >
+                    Internet Identity লগইন
+                  </p>
+                  <p
+                    className="text-xs leading-relaxed"
+                    style={{ color: "oklch(0.42 0.08 215)" }}
+                  >
+                    আপনার ICP ডিজিটাল পরিচয় ব্যবহার করে নিরাপদে প্রবেশ করুন। কোনো
+                    পাসওয়ার্ড প্রয়োজন নেই।
+                  </p>
+                </div>
+              </motion.div>
+
+              {/* Login button */}
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.34 }}
+              >
+                <Button
+                  onClick={() => login()}
+                  disabled={isLoggingIn}
+                  size="lg"
+                  className="w-full h-14 text-base font-bold text-white shadow-lg transition-all duration-300 group relative overflow-hidden rounded-xl"
+                  style={{
+                    background:
+                      "linear-gradient(135deg, oklch(0.42 0.16 155) 0%, oklch(0.36 0.14 165) 100%)",
+                    boxShadow:
+                      "0 8px 24px oklch(0.42 0.16 155 / 0.35), 0 2px 8px oklch(0.42 0.16 155 / 0.2)",
+                  }}
+                  data-ocid="admin.login.submit_button"
+                >
+                  {/* Shimmer overlay */}
+                  <span
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
+                    style={{
+                      background:
+                        "linear-gradient(105deg, transparent 30%, oklch(1 0 0 / 0.15) 50%, transparent 70%)",
+                    }}
+                  />
+                  {isLoggingIn ? (
+                    <span className="flex items-center gap-2 relative z-10">
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      যাচাই করা হচ্ছে...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2 relative z-10">
+                      <ShieldCheck className="w-5 h-5" />
+                      লগইন করুন
+                      <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-1.5" />
+                    </span>
+                  )}
+                </Button>
+              </motion.div>
+
+              {/* Social proof */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.42 }}
+                className="mt-4 flex items-center justify-center gap-4"
+              >
+                <div className="flex items-center gap-1.5">
+                  <Users
+                    className="w-3 h-3"
+                    style={{ color: "oklch(0.62 0.04 240)" }}
+                  />
+                  <p
+                    className="text-xs"
+                    style={{ color: "oklch(0.56 0.04 240)" }}
+                  >
+                    ১,২০০+ সক্রিয় ব্যবহারকারী
+                  </p>
+                </div>
+                <div
+                  className="w-px h-3"
+                  style={{ background: "oklch(0.88 0.02 240)" }}
+                />
+                <div className="flex items-center gap-1.5">
+                  <LockKeyhole
+                    className="w-3 h-3"
+                    style={{ color: "oklch(0.62 0.04 240)" }}
+                  />
+                  <p
+                    className="text-xs"
+                    style={{ color: "oklch(0.56 0.04 240)" }}
+                  >
+                    256-bit এনক্রিপশন
+                  </p>
+                </div>
+              </motion.div>
             </div>
-
-            {/* Heading */}
-            <motion.div
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
-              className="mb-6"
-            >
-              <h1
-                className="text-3xl font-extrabold text-foreground mb-1.5"
-                style={{ fontFamily: "'Bricolage Grotesque', system-ui" }}
-              >
-                স্বাগতম
-              </h1>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                অ্যাডমিন প্যানেল পরিচালনার জন্য
-                <br />
-                আপনার পরিচয় যাচাই করুন
-              </p>
-            </motion.div>
-
-            {/* Info box */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.25 }}
-              className="rounded-xl p-4 mb-6 flex gap-3"
-              style={{
-                background: "oklch(0.55 0.14 200 / 0.07)",
-                borderLeft: "3px solid oklch(0.55 0.14 200 / 0.5)",
-              }}
-            >
-              <Info
-                className="w-4 h-4 flex-shrink-0 mt-0.5"
-                style={{ color: "oklch(0.45 0.14 200)" }}
-              />
-              <div>
-                <p
-                  className="text-xs font-semibold mb-0.5"
-                  style={{ color: "oklch(0.35 0.12 200)" }}
-                >
-                  Internet Identity লগইন
-                </p>
-                <p
-                  className="text-xs leading-relaxed"
-                  style={{ color: "oklch(0.45 0.1 200)" }}
-                >
-                  আপনার ICP ডিজিটাল পরিচয় ব্যবহার করে নিরাপদে প্রবেশ করুন। কোনো পাসওয়ার্ড
-                  প্রয়োজন নেই।
-                </p>
-              </div>
-            </motion.div>
-
-            {/* Login button */}
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-            >
-              <Button
-                onClick={() => login()}
-                disabled={isLoggingIn}
-                size="lg"
-                className="w-full h-12 text-base font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-md transition-all duration-200"
-                data-ocid="admin.login.submit_button"
-              >
-                {isLoggingIn ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    যাচাই করা হচ্ছে...
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="w-4 h-4 mr-2" />
-                    লগইন করুন
-                  </>
-                )}
-              </Button>
-            </motion.div>
-
-            {/* Security note */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.45 }}
-              className="mt-4 flex items-center justify-center gap-1.5"
-            >
-              <LockKeyhole className="w-3 h-3 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">
-                256-bit এনক্রিপশন দ্বারা সুরক্ষিত সংযোগ
-              </p>
-            </motion.div>
           </div>
 
           {/* Back to homepage */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
+            transition={{ delay: 0.55 }}
             className="mt-6 text-center"
           >
             <Link
               to="/"
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              className="inline-flex items-center gap-1.5 text-sm transition-colors"
+              style={{ color: "oklch(0.52 0.06 240)" }}
             >
               ← হোমপেজে ফিরুন
             </Link>
@@ -507,17 +893,75 @@ function ListingsManagement() {
 
   return (
     <div>
+      {/* Quick Add Banner */}
+      <div
+        className="rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.96 0.025 240) 0%, oklch(0.99 0.008 240) 100%)",
+          border: "1px solid oklch(0.88 0.06 240)",
+          borderLeft: "4px solid oklch(0.52 0.16 240)",
+        }}
+        data-ocid="admin.listings.quick_add.panel"
+      >
+        <div
+          className="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-10"
+          style={{ background: "oklch(0.52 0.16 240)" }}
+        />
+        <div className="flex items-center gap-4 flex-1 relative z-10">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.52 0.16 240), oklch(0.45 0.14 250))",
+            }}
+          >
+            <MapPin className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-bold text-foreground">জমির লিস্টিং যোগ করুন</h4>
+              <motion.span
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{
+                  duration: 2,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut",
+                }}
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold"
+                style={{
+                  background: "oklch(0.52 0.16 240 / 0.12)",
+                  color: "oklch(0.38 0.14 240)",
+                  border: "1px solid oklch(0.52 0.16 240 / 0.22)",
+                }}
+              >
+                {listings?.length ?? 0} টি আছে
+              </motion.span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              জমির শিরোনাম, অবস্থান, মূল্য, বিক্রেতার তথ্য এবং জমির বিবরণ যোগ করুন
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={openCreate}
+          className="gap-2 shrink-0 rounded-xl font-bold shadow-md relative z-10"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.52 0.16 240), oklch(0.45 0.14 250))",
+            color: "white",
+          }}
+          data-ocid="admin.listings.quick_add.primary_button"
+        >
+          <Plus className="w-4 h-4" />
+          নতুন লিস্টিং যোগ করুন
+        </Button>
+      </div>
+
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-heading font-bold text-foreground">
           লিস্টিং ব্যবস্থাপনা ({listings?.length ?? 0})
         </h3>
-        <Button
-          size="sm"
-          onClick={openCreate}
-          className="bg-primary hover:bg-primary/90 gap-1.5"
-        >
-          <Plus className="w-4 h-4" /> নতুন লিস্টিং
-        </Button>
       </div>
 
       {isLoading ? (
@@ -571,15 +1015,15 @@ function ListingsManagement() {
                     />
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       <Button
                         size="sm"
                         variant="outline"
                         data-ocid={`admin.listing.edit_button.${i + 1}`}
                         onClick={() => openEdit(l)}
-                        className="h-7 w-7 p-0"
+                        className="h-8 px-2.5 gap-1.5 text-xs"
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil className="w-3.5 h-3.5" /> এডিট
                       </Button>
                       <Button
                         size="sm"
@@ -587,7 +1031,7 @@ function ListingsManagement() {
                         data-ocid={`admin.listing.delete_button.${i + 1}`}
                         onClick={() => handleDelete(l.id)}
                         disabled={deleteMut.isPending}
-                        className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -603,233 +1047,306 @@ function ListingsManagement() {
       {/* Listing Form Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent
-          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl"
           data-ocid="admin.listings.dialog"
         >
-          <DialogHeader>
-            <DialogTitle>
-              {editListing ? "লিস্টিং সম্পাদনা" : "নতুন লিস্টিং"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-3 py-2">
-            <div className="col-span-2 space-y-1">
-              <Label className="text-xs">শিরোনাম *</Label>
-              <Input
-                value={form.title}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, title: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">বিভাগ *</Label>
-              <Select
-                value={form.division}
-                onValueChange={(v) =>
-                  setForm((p) => ({
-                    ...p,
-                    division: v,
-                    district: "",
-                    upazila: "",
-                  }))
-                }
+          <FormDialogShell
+            title={editListing ? "লিস্টিং সম্পাদনা" : "নতুন লিস্টিং যোগ করুন"}
+            icon={MapPin}
+            gradientFrom="oklch(0.48 0.16 240)"
+            gradientTo="oklch(0.40 0.14 255)"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <FormSection label="মূল তথ্য" color="oklch(0.52 0.16 240)" />
+
+              <div className="col-span-2 space-y-1.5">
+                <FormLabel required>শিরোনাম</FormLabel>
+                <Input
+                  value={form.title}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, title: e.target.value }))
+                  }
+                  placeholder="জমির শিরোনাম লিখুন"
+                  className="h-11 rounded-xl border-border/70 focus-visible:ring-blue-500/30 focus-visible:border-blue-400"
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <FormLabel>বিবরণ</FormLabel>
+                <Textarea
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, description: e.target.value }))
+                  }
+                  rows={3}
+                  className="resize-none rounded-xl border-border/70 focus-visible:ring-blue-500/30 focus-visible:border-blue-400"
+                  placeholder="জমির বিস্তারিত বিবরণ লিখুন"
+                />
+              </div>
+
+              <FormSection label="অবস্থান" color="oklch(0.52 0.16 240)" />
+
+              <div className="space-y-1.5">
+                <FormLabel required>বিভাগ</FormLabel>
+                <Select
+                  value={form.division}
+                  onValueChange={(v) =>
+                    setForm((p) => ({
+                      ...p,
+                      division: v,
+                      district: "",
+                      upazila: "",
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-border/70">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BD_DIVISIONS.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel required>জেলা</FormLabel>
+                <Select
+                  value={form.district}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, district: v, upazila: "" }))
+                  }
+                  disabled={adminAvailableDistricts.length === 0}
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-border/70">
+                    <SelectValue placeholder="জেলা বেছে নিন" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adminAvailableDistricts.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel>উপজেলা</FormLabel>
+                <Select
+                  value={form.upazila}
+                  onValueChange={(v) => setForm((p) => ({ ...p, upazila: v }))}
+                  disabled={adminAvailableUpazilas.length === 0}
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-border/70">
+                    <SelectValue placeholder="উপজেলা বেছে নিন" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {adminAvailableUpazilas.map((u) => (
+                      <SelectItem key={u} value={u}>
+                        {u}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel>ঠিকানা</FormLabel>
+                <Input
+                  value={form.address}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, address: e.target.value }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="সম্পূর্ণ ঠিকানা"
+                />
+              </div>
+
+              <FormSection label="মূল্য ও পরিমাণ" color="oklch(0.52 0.16 240)" />
+
+              <div className="space-y-1.5">
+                <FormLabel>আয়তন (শতাংশ)</FormLabel>
+                <Input
+                  type="number"
+                  value={form.area}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, area: Number(e.target.value) }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="যেমন: ১০"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel>মোট মূল্য (টাকা)</FormLabel>
+                <Input
+                  type="number"
+                  value={Number(form.price)}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      price: BigInt(Math.round(Number(e.target.value))),
+                      pricePerDecimal:
+                        p.area > 0
+                          ? BigInt(Math.round(Number(e.target.value) / p.area))
+                          : BigInt(0),
+                    }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="যেমন: 5000000"
+                />
+              </div>
+
+              <FormSection label="জমির বিবরণ" color="oklch(0.52 0.16 240)" />
+
+              <div className="space-y-1.5">
+                <FormLabel>জমির ধরন</FormLabel>
+                <Select
+                  value={form.landType}
+                  onValueChange={(v) => setForm((p) => ({ ...p, landType: v }))}
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-border/70">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="vita">ভিটা</SelectItem>
+                    <SelectItem value="nala">নালা</SelectItem>
+                    <SelectItem value="samatal">সমতল</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel>রাস্তার ধরন</FormLabel>
+                <Select
+                  value={form.roadAccess}
+                  onValueChange={(v) =>
+                    setForm((p) => ({ ...p, roadAccess: v }))
+                  }
+                >
+                  <SelectTrigger className="h-11 rounded-xl border-border/70">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="paved">পিচ ঢালাই</SelectItem>
+                    <SelectItem value="brick">ইটের রাস্তা</SelectItem>
+                    <SelectItem value="none">রাস্তা নেই</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel>রাস্তার প্রশস্ততা</FormLabel>
+                <Input
+                  value={form.roadWidth}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, roadWidth: e.target.value }))
+                  }
+                  placeholder="যেমন: ১৬ ফুট"
+                  className="h-11 rounded-xl border-border/70"
+                />
+              </div>
+
+              <FormSection label="বিক্রেতার তথ্য" color="oklch(0.52 0.16 240)" />
+
+              <div className="space-y-1.5">
+                <FormLabel>বিক্রেতার নাম</FormLabel>
+                <Input
+                  value={form.sellerName}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, sellerName: e.target.value }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="বিক্রেতার পুরো নাম"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel>বিক্রেতার ফোন</FormLabel>
+                <Input
+                  value={form.sellerPhone}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, sellerPhone: e.target.value }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="০১XXXXXXXXX"
+                />
+              </div>
+
+              <FormSection label="সেটিংস" color="oklch(0.52 0.16 240)" />
+
+              <div
+                className="flex items-center justify-between p-3 rounded-xl"
+                style={{
+                  background: "oklch(0.97 0.01 240)",
+                  border: "1px solid oklch(0.92 0.04 240)",
+                }}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {BD_DIVISIONS.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {d}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">জেলা *</Label>
-              <Select
-                value={form.district}
-                onValueChange={(v) =>
-                  setForm((p) => ({ ...p, district: v, upazila: "" }))
-                }
-                disabled={adminAvailableDistricts.length === 0}
+                <div>
+                  <div className="text-sm font-semibold text-foreground/80">
+                    যাচাইকৃত
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Trust badge দেখাবে
+                  </div>
+                </div>
+                <Switch
+                  checked={form.isVerified}
+                  onCheckedChange={(v) =>
+                    setForm((p) => ({ ...p, isVerified: v }))
+                  }
+                />
+              </div>
+              <div
+                className="flex items-center justify-between p-3 rounded-xl"
+                style={{
+                  background: "oklch(0.97 0.01 240)",
+                  border: "1px solid oklch(0.92 0.04 240)",
+                }}
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="জেলা বেছে নিন" />
-                </SelectTrigger>
-                <SelectContent>
-                  {adminAvailableDistricts.map((d) => (
-                    <SelectItem key={d} value={d}>
-                      {d}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                <div>
+                  <div className="text-sm font-semibold text-foreground/80">
+                    বৈশিষ্ট্যময়
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    হোমপেজে দেখাবে
+                  </div>
+                </div>
+                <Switch
+                  checked={form.isFeatured}
+                  onCheckedChange={(v) =>
+                    setForm((p) => ({ ...p, isFeatured: v }))
+                  }
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">উপজেলা</Label>
-              <Select
-                value={form.upazila}
-                onValueChange={(v) => setForm((p) => ({ ...p, upazila: v }))}
-                disabled={adminAvailableUpazilas.length === 0}
+
+            <DialogFooter className="mt-6 gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowForm(false)}
+                className="rounded-xl h-11 px-6"
+                data-ocid="admin.cancel_button"
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="উপজেলা বেছে নিন" />
-                </SelectTrigger>
-                <SelectContent>
-                  {adminAvailableUpazilas.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {u}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">ঠিকানা</Label>
-              <Input
-                value={form.address}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, address: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">আয়তন (শতাংশ)</Label>
-              <Input
-                type="number"
-                value={form.area}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, area: Number(e.target.value) }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">মোট মূল্য (টাকা)</Label>
-              <Input
-                type="number"
-                value={Number(form.price)}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    price: BigInt(Math.round(Number(e.target.value))),
-                    pricePerDecimal:
-                      p.area > 0
-                        ? BigInt(Math.round(Number(e.target.value) / p.area))
-                        : BigInt(0),
-                  }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">জমির ধরন</Label>
-              <Select
-                value={form.landType}
-                onValueChange={(v) => setForm((p) => ({ ...p, landType: v }))}
+                বাতিল
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={createMut.isPending || updateMut.isPending}
+                className="rounded-xl h-11 px-8 font-bold text-white shadow-md"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.48 0.16 240), oklch(0.40 0.14 255))",
+                }}
+                data-ocid="admin.save_button"
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="vita">ভিটা</SelectItem>
-                  <SelectItem value="nala">নালা</SelectItem>
-                  <SelectItem value="samatal">সমতল</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">রাস্তার ধরন</Label>
-              <Select
-                value={form.roadAccess}
-                onValueChange={(v) => setForm((p) => ({ ...p, roadAccess: v }))}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="paved">পিচ ঢালাই</SelectItem>
-                  <SelectItem value="brick">ইটের রাস্তা</SelectItem>
-                  <SelectItem value="none">রাস্তা নেই</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">রাস্তার প্রশস্ততা</Label>
-              <Input
-                value={form.roadWidth}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, roadWidth: e.target.value }))
-                }
-                placeholder="যেমন: ১৬ ফুট"
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">বিক্রেতার নাম</Label>
-              <Input
-                value={form.sellerName}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, sellerName: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">বিক্রেতার ফোন</Label>
-              <Input
-                value={form.sellerPhone}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, sellerPhone: e.target.value }))
-                }
-              />
-            </div>
-            <div className="col-span-2 space-y-1">
-              <Label className="text-xs">বিবরণ</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, description: e.target.value }))
-                }
-                rows={3}
-                className="resize-none"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={form.isVerified}
-                onCheckedChange={(v) =>
-                  setForm((p) => ({ ...p, isVerified: v }))
-                }
-              />
-              <Label className="text-xs">যাচাইকৃত</Label>
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={form.isFeatured}
-                onCheckedChange={(v) =>
-                  setForm((p) => ({ ...p, isFeatured: v }))
-                }
-              />
-              <Label className="text-xs">বৈশিষ্ট্যময়</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowForm(false)}
-              data-ocid="admin.cancel_button"
-            >
-              বাতিল
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={createMut.isPending || updateMut.isPending}
-              data-ocid="admin.save_button"
-            >
-              {createMut.isPending || updateMut.isPending
-                ? "সংরক্ষণ হচ্ছে..."
-                : "সংরক্ষণ করুন"}
-            </Button>
-          </DialogFooter>
+                {createMut.isPending || updateMut.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    সংরক্ষণ হচ্ছে...
+                  </>
+                ) : (
+                  "সংরক্ষণ করুন"
+                )}
+              </Button>
+            </DialogFooter>
+          </FormDialogShell>
         </DialogContent>
       </Dialog>
     </div>
@@ -901,17 +1418,75 @@ function LawyersManagement() {
 
   return (
     <div>
+      {/* Quick Add Banner */}
+      <div
+        className="rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.97 0.02 300) 0%, oklch(0.99 0.008 300) 100%)",
+          border: "1px solid oklch(0.90 0.05 300)",
+          borderLeft: "4px solid oklch(0.55 0.14 300)",
+        }}
+        data-ocid="admin.lawyers.quick_add.panel"
+      >
+        <div
+          className="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-10"
+          style={{ background: "oklch(0.55 0.14 300)" }}
+        />
+        <div className="flex items-center gap-4 flex-1 relative z-10">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.52 0.15 300), oklch(0.45 0.13 310))",
+            }}
+          >
+            <Scale className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-bold text-foreground">আইনজীবী যোগ করুন</h4>
+              <motion.span
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{
+                  duration: 2,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut",
+                }}
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold"
+                style={{
+                  background: "oklch(0.52 0.15 300 / 0.12)",
+                  color: "oklch(0.38 0.12 300)",
+                  border: "1px solid oklch(0.52 0.15 300 / 0.22)",
+                }}
+              >
+                {lawyers?.length ?? 0} জন আছেন
+              </motion.span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              আইনজীবীর নাম, বিশেষজ্ঞতা, যোগাযোগ এবং পরামর্শ ফি যোগ করুন
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={openCreate}
+          className="gap-2 shrink-0 rounded-xl font-bold shadow-md relative z-10"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.52 0.15 300), oklch(0.45 0.13 310))",
+            color: "white",
+          }}
+          data-ocid="admin.lawyers.quick_add.primary_button"
+        >
+          <Plus className="w-4 h-4" />
+          নতুন আইনজীবী যোগ করুন
+        </Button>
+      </div>
+
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-heading font-bold text-foreground">
           আইনজীবী ব্যবস্থাপনা ({lawyers?.length ?? 0})
         </h3>
-        <Button
-          size="sm"
-          onClick={openCreate}
-          className="bg-primary hover:bg-primary/90 gap-1.5"
-        >
-          <Plus className="w-4 h-4" /> নতুন আইনজীবী
-        </Button>
       </div>
 
       {isLoading ? (
@@ -934,7 +1509,7 @@ function LawyersManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(lawyers ?? []).map((l) => (
+              {(lawyers ?? []).map((l, i) => (
                 <TableRow key={l.id}>
                   <TableCell className="font-medium text-sm">
                     {l.name}
@@ -954,21 +1529,22 @@ function LawyersManagement() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       <Button
                         size="sm"
                         variant="outline"
+                        data-ocid={`admin.lawyer.edit_button.${i + 1}`}
                         onClick={() => openEdit(l)}
-                        className="h-7 w-7 p-0"
+                        className="h-8 px-2.5 gap-1.5 text-xs"
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil className="w-3.5 h-3.5" /> এডিট
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => deleteMut.mutate(l.id)}
                         disabled={deleteMut.isPending}
-                        className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -982,109 +1558,164 @@ function LawyersManagement() {
       )}
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
-        <DialogContent data-ocid="admin.lawyers.dialog">
-          <DialogHeader>
-            <DialogTitle>
-              {editLawyer ? "আইনজীবী সম্পাদনা" : "নতুন আইনজীবী"}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-2 gap-3 py-2">
-            <div className="col-span-2 space-y-1">
-              <Label className="text-xs">নাম *</Label>
-              <Input
-                value={form.name}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, name: e.target.value }))
-                }
-              />
+        <DialogContent
+          className="max-w-lg max-h-[90vh] overflow-y-auto p-6 rounded-2xl"
+          data-ocid="admin.lawyers.dialog"
+        >
+          <FormDialogShell
+            title={editLawyer ? "আইনজীবী সম্পাদনা" : "নতুন আইনজীবী যোগ করুন"}
+            icon={Scale}
+            gradientFrom="oklch(0.48 0.15 300)"
+            gradientTo="oklch(0.40 0.13 315)"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <FormSection label="ব্যক্তিগত তথ্য" color="oklch(0.52 0.15 300)" />
+
+              <div className="col-span-2 space-y-1.5">
+                <FormLabel required>নাম</FormLabel>
+                <Input
+                  value={form.name}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, name: e.target.value }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="আইনজীবীর পুরো নাম"
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <FormLabel>বিশেষজ্ঞতা</FormLabel>
+                <Input
+                  value={form.specialization}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, specialization: e.target.value }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="যেমন: ভূমি আইন, দলিল"
+                />
+              </div>
+
+              <FormSection label="যোগাযোগ" color="oklch(0.52 0.15 300)" />
+
+              <div className="space-y-1.5">
+                <FormLabel required>ফোন</FormLabel>
+                <Input
+                  value={form.phone}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, phone: e.target.value }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="০১XXXXXXXXX"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel>ইমেইল</FormLabel>
+                <Input
+                  type="email"
+                  value={form.email}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, email: e.target.value }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="email@example.com"
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <FormLabel>অবস্থান</FormLabel>
+                <Input
+                  value={form.location}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, location: e.target.value }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="চেম্বার ঠিকানা"
+                />
+              </div>
+
+              <FormSection label="পেশাদার তথ্য" color="oklch(0.52 0.15 300)" />
+
+              <div className="space-y-1.5">
+                <FormLabel>পরামর্শ ফি (টাকা)</FormLabel>
+                <Input
+                  type="number"
+                  value={Number(form.consultationFee)}
+                  onChange={(e) =>
+                    setForm((p) => ({
+                      ...p,
+                      consultationFee: BigInt(
+                        Math.round(Number(e.target.value)),
+                      ),
+                    }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="পরামর্শ ফি"
+                />
+              </div>
+              <div
+                className="flex items-center justify-between p-3 rounded-xl self-end"
+                style={{
+                  background: "oklch(0.97 0.01 300)",
+                  border: "1px solid oklch(0.92 0.04 300)",
+                }}
+              >
+                <div>
+                  <div className="text-sm font-semibold text-foreground/80">
+                    উপলব্ধ
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    এখন পরামর্শ দিতে পারবেন
+                  </div>
+                </div>
+                <Switch
+                  checked={form.isAvailable}
+                  onCheckedChange={(v) =>
+                    setForm((p) => ({ ...p, isAvailable: v }))
+                  }
+                />
+              </div>
+              <div className="col-span-2 space-y-1.5">
+                <FormLabel>বিবরণ</FormLabel>
+                <Textarea
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, description: e.target.value }))
+                  }
+                  rows={3}
+                  className="resize-none rounded-xl border-border/70"
+                  placeholder="আইনজীবী সম্পর্কে সংক্ষিপ্ত বিবরণ"
+                />
+              </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">বিশেষজ্ঞতা</Label>
-              <Input
-                value={form.specialization}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, specialization: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">ফোন *</Label>
-              <Input
-                value={form.phone}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, phone: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">ইমেইল</Label>
-              <Input
-                type="email"
-                value={form.email}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, email: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">অবস্থান</Label>
-              <Input
-                value={form.location}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, location: e.target.value }))
-                }
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">পরামর্শ ফি (টাকা)</Label>
-              <Input
-                type="number"
-                value={Number(form.consultationFee)}
-                onChange={(e) =>
-                  setForm((p) => ({
-                    ...p,
-                    consultationFee: BigInt(Math.round(Number(e.target.value))),
-                  }))
-                }
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={form.isAvailable}
-                onCheckedChange={(v) =>
-                  setForm((p) => ({ ...p, isAvailable: v }))
-                }
-              />
-              <Label className="text-xs">উপলব্ধ</Label>
-            </div>
-            <div className="col-span-2 space-y-1">
-              <Label className="text-xs">বিবরণ</Label>
-              <Textarea
-                value={form.description}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, description: e.target.value }))
-                }
-                rows={3}
-                className="resize-none"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowForm(false)}
-              data-ocid="admin.lawyers.cancel_button"
-            >
-              বাতিল
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={createMut.isPending || updateMut.isPending}
-              data-ocid="admin.lawyers.save_button"
-            >
-              সংরক্ষণ করুন
-            </Button>
-          </DialogFooter>
+
+            <DialogFooter className="mt-6 gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowForm(false)}
+                className="rounded-xl h-11 px-6"
+                data-ocid="admin.lawyers.cancel_button"
+              >
+                বাতিল
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={createMut.isPending || updateMut.isPending}
+                className="rounded-xl h-11 px-8 font-bold text-white shadow-md"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.48 0.15 300), oklch(0.40 0.13 315))",
+                }}
+                data-ocid="admin.lawyers.save_button"
+              >
+                {createMut.isPending || updateMut.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    সংরক্ষণ হচ্ছে...
+                  </>
+                ) : (
+                  "সংরক্ষণ করুন"
+                )}
+              </Button>
+            </DialogFooter>
+          </FormDialogShell>
         </DialogContent>
       </Dialog>
     </div>
@@ -1154,17 +1785,75 @@ function NewsManagement() {
 
   return (
     <div>
+      {/* Quick Add Banner */}
+      <div
+        className="rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.98 0.03 78) 0%, oklch(0.99 0.01 78) 100%)",
+          border: "1px solid oklch(0.92 0.06 78)",
+          borderLeft: "4px solid oklch(0.65 0.18 78)",
+        }}
+        data-ocid="admin.news.quick_add.panel"
+      >
+        <div
+          className="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-10"
+          style={{ background: "oklch(0.65 0.18 78)" }}
+        />
+        <div className="flex items-center gap-4 flex-1 relative z-10">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.62 0.18 78), oklch(0.55 0.16 68))",
+            }}
+          >
+            <Newspaper className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-bold text-foreground">সংবাদ প্রকাশ করুন</h4>
+              <motion.span
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{
+                  duration: 2,
+                  repeat: Number.POSITIVE_INFINITY,
+                  ease: "easeInOut",
+                }}
+                className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold"
+                style={{
+                  background: "oklch(0.62 0.18 78 / 0.12)",
+                  color: "oklch(0.45 0.14 78)",
+                  border: "1px solid oklch(0.62 0.18 78 / 0.22)",
+                }}
+              >
+                {news?.length ?? 0} টি আছে
+              </motion.span>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              জমি সংক্রান্ত আইন, বাজারদর, সরকারি প্রজ্ঞাপন ও সর্বশেষ সংবাদ প্রকাশ করুন
+            </p>
+          </div>
+        </div>
+        <Button
+          onClick={openCreate}
+          className="gap-2 shrink-0 rounded-xl font-bold shadow-md relative z-10"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.60 0.18 78), oklch(0.52 0.16 68))",
+            color: "white",
+          }}
+          data-ocid="admin.news.quick_add.primary_button"
+        >
+          <Plus className="w-4 h-4" />
+          নতুন সংবাদ যোগ করুন
+        </Button>
+      </div>
+
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-heading font-bold text-foreground">
           সংবাদ ব্যবস্থাপনা ({news?.length ?? 0})
         </h3>
-        <Button
-          size="sm"
-          onClick={openCreate}
-          className="bg-primary hover:bg-primary/90 gap-1.5"
-        >
-          <Plus className="w-4 h-4" /> নতুন সংবাদ
-        </Button>
       </div>
 
       {isLoading ? (
@@ -1186,7 +1875,7 @@ function NewsManagement() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {(news ?? []).map((a) => (
+              {(news ?? []).map((a, i) => (
                 <TableRow key={a.id}>
                   <TableCell className="font-medium text-sm max-w-xs">
                     <span className="line-clamp-1">{a.title}</span>
@@ -1203,21 +1892,22 @@ function NewsManagement() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1.5">
                       <Button
                         size="sm"
                         variant="outline"
+                        data-ocid={`admin.news.edit_button.${i + 1}`}
                         onClick={() => openEdit(a)}
-                        className="h-7 w-7 p-0"
+                        className="h-8 px-2.5 gap-1.5 text-xs"
                       >
-                        <Pencil className="w-3.5 h-3.5" />
+                        <Pencil className="w-3.5 h-3.5" /> এডিট
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => deleteMut.mutate(a.id)}
                         disabled={deleteMut.isPending}
-                        className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10"
+                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
@@ -1232,30 +1922,36 @@ function NewsManagement() {
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent
-          className="max-w-2xl max-h-[90vh] overflow-y-auto"
+          className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl"
           data-ocid="admin.news.dialog"
         >
-          <DialogHeader>
-            <DialogTitle>{editArticle ? "সংবাদ সম্পাদনা" : "নতুন সংবাদ"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="space-y-1">
-              <Label className="text-xs">শিরোনাম *</Label>
-              <Input
-                value={form.title}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, title: e.target.value }))
-                }
-              />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">বিভাগ</Label>
+          <FormDialogShell
+            title={editArticle ? "সংবাদ সম্পাদনা" : "নতুন সংবাদ প্রকাশ করুন"}
+            icon={Newspaper}
+            gradientFrom="oklch(0.56 0.18 78)"
+            gradientTo="oklch(0.48 0.16 68)"
+          >
+            <div className="grid grid-cols-2 gap-4">
+              <FormSection label="বিষয়বস্তু" color="oklch(0.62 0.18 78)" />
+
+              <div className="col-span-2 space-y-1.5">
+                <FormLabel required>শিরোনাম</FormLabel>
+                <Input
+                  value={form.title}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, title: e.target.value }))
+                  }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="সংবাদের শিরোনাম লিখুন"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel>বিভাগ</FormLabel>
                 <Select
                   value={form.category}
                   onValueChange={(v) => setForm((p) => ({ ...p, category: v }))}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger className="h-11 rounded-xl border-border/70">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1265,60 +1961,93 @@ function NewsManagement() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">লেখক</Label>
+              <div className="space-y-1.5">
+                <FormLabel>লেখক</FormLabel>
                 <Input
                   value={form.author}
                   onChange={(e) =>
                     setForm((p) => ({ ...p, author: e.target.value }))
                   }
+                  className="h-11 rounded-xl border-border/70"
+                  placeholder="লেখকের নাম"
+                />
+              </div>
+
+              <FormSection label="প্রকাশনা" color="oklch(0.62 0.18 78)" />
+
+              <div className="col-span-2 space-y-1.5">
+                <FormLabel required>বিষয়বস্তু</FormLabel>
+                <Textarea
+                  value={form.content}
+                  onChange={(e) =>
+                    setForm((p) => ({ ...p, content: e.target.value }))
+                  }
+                  rows={8}
+                  className="resize-none rounded-xl border-border/70"
+                  placeholder="সংবাদের বিস্তারিত বিষয়বস্তু লিখুন..."
+                  data-ocid="admin.news.editor"
+                />
+              </div>
+              <div
+                className="col-span-2 flex items-center justify-between p-4 rounded-xl"
+                style={{
+                  background: "oklch(0.98 0.02 78)",
+                  border: "1px solid oklch(0.92 0.06 78)",
+                }}
+              >
+                <div>
+                  <div className="text-sm font-bold text-foreground/80">
+                    এখনই প্রকাশ করুন
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    চালু করলে হোমপেজের নিউজফিডে দেখাবে
+                  </div>
+                </div>
+                <Switch
+                  checked={form.isPublished}
+                  onCheckedChange={(v) =>
+                    setForm((p) => ({
+                      ...p,
+                      isPublished: v,
+                      publishedAt: v
+                        ? BigInt(Date.now() * 1_000_000)
+                        : p.publishedAt,
+                    }))
+                  }
                 />
               </div>
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs">বিষয়বস্তু *</Label>
-              <Textarea
-                value={form.content}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, content: e.target.value }))
-                }
-                rows={8}
-                className="resize-none"
-                data-ocid="admin.news.editor"
-              />
-            </div>
-            <div className="flex items-center gap-3">
-              <Switch
-                checked={form.isPublished}
-                onCheckedChange={(v) =>
-                  setForm((p) => ({
-                    ...p,
-                    isPublished: v,
-                    publishedAt: v
-                      ? BigInt(Date.now() * 1_000_000)
-                      : p.publishedAt,
-                  }))
-                }
-              />
-              <Label className="text-xs">প্রকাশিত</Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowForm(false)}
-              data-ocid="admin.news.cancel_button"
-            >
-              বাতিল
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={createMut.isPending || updateMut.isPending}
-              data-ocid="admin.news.save_button"
-            >
-              সংরক্ষণ করুন
-            </Button>
-          </DialogFooter>
+
+            <DialogFooter className="mt-6 gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowForm(false)}
+                className="rounded-xl h-11 px-6"
+                data-ocid="admin.news.cancel_button"
+              >
+                বাতিল
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={createMut.isPending || updateMut.isPending}
+                className="rounded-xl h-11 px-8 font-bold text-white shadow-md"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.56 0.18 78), oklch(0.48 0.16 68))",
+                }}
+                data-ocid="admin.news.save_button"
+              >
+                {createMut.isPending || updateMut.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    সংরক্ষণ হচ্ছে...
+                  </>
+                ) : (
+                  "সংরক্ষণ করুন"
+                )}
+              </Button>
+            </DialogFooter>
+          </FormDialogShell>
         </DialogContent>
       </Dialog>
     </div>
@@ -1331,6 +2060,7 @@ export function AdminPage() {
   const { data: listings } = useGetAllListings();
   const { data: lawyers } = useGetAllLawyers();
   const { data: news } = useGetAllNews();
+  const [activeTab, setActiveTab] = useState("listings");
 
   if (!identity) return <AdminLogin />;
   if (adminLoading) {
@@ -1349,30 +2079,36 @@ export function AdminPage() {
       ? `${principal.slice(0, 8)}...${principal.slice(-6)}`
       : principal;
 
+  const profileInitials = principal.slice(0, 2).toUpperCase();
+
   const dashStats = [
     {
       label: "মোট লিস্টিং",
       value: listings?.length ?? 0,
       icon: MapPin,
       color: "bg-blue-50 text-blue-700",
+      borderColor: "oklch(0.55 0.14 240)",
     },
     {
       label: "আইনজীবী",
       value: lawyers?.length ?? 0,
       icon: Scale,
       color: "bg-purple-50 text-purple-700",
+      borderColor: "oklch(0.55 0.14 300)",
     },
     {
       label: "সংবাদ",
       value: news?.length ?? 0,
       icon: Newspaper,
       color: "bg-amber-50 text-amber-700",
+      borderColor: "oklch(0.65 0.18 78)",
     },
     {
       label: "প্রকাশিত সংবাদ",
       value: news?.filter((n) => n.isPublished).length ?? 0,
       icon: TrendingUp,
       color: "bg-emerald-50 text-emerald-700",
+      borderColor: "oklch(0.55 0.16 155)",
     },
   ];
 
@@ -1405,6 +2141,19 @@ export function AdminPage() {
         />
 
         <div className="relative z-10 container max-w-7xl mx-auto px-4 py-4">
+          {/* Breadcrumb */}
+          <div
+            className="flex items-center gap-1.5 mb-2"
+            style={{ color: "oklch(1 0 0 / 0.40)" }}
+          >
+            <Home className="w-3 h-3" />
+            <span className="text-xs">হোম</span>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-xs" style={{ color: "oklch(1 0 0 / 0.65)" }}>
+              অ্যাডমিন প্যানেল
+            </span>
+          </div>
+
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="flex items-center gap-3">
               <div
@@ -1433,19 +2182,37 @@ export function AdminPage() {
             </div>
 
             <div className="flex items-center gap-2 sm:gap-3">
+              {/* Session active badge */}
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+                style={{
+                  background: "oklch(0.45 0.16 155 / 0.2)",
+                  color: "oklch(0.75 0.15 155)",
+                  border: "1px solid oklch(0.45 0.16 155 / 0.3)",
+                }}
+              >
+                <span
+                  className="w-1.5 h-1.5 rounded-full animate-pulse"
+                  style={{ background: "oklch(0.70 0.18 155)" }}
+                />
+                সেশন সক্রিয়
+              </div>
+
               {/* Identity badge */}
               <div
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg"
                 style={{ background: "oklch(1 0 0 / 0.08)" }}
               >
+                {/* Profile avatar with initials */}
                 <div
-                  className="w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ background: "oklch(0.88 0.16 78 / 0.2)" }}
+                  className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+                  style={{
+                    background: "oklch(0.88 0.16 78 / 0.25)",
+                    color: "oklch(0.88 0.16 78)",
+                    border: "1px solid oklch(0.88 0.16 78 / 0.3)",
+                  }}
                 >
-                  <ShieldCheck
-                    className="w-3 h-3"
-                    style={{ color: "oklch(0.88 0.16 78)" }}
-                  />
+                  {profileInitials}
                 </div>
                 <span
                   className="text-xs font-mono font-medium"
@@ -1495,15 +2262,19 @@ export function AdminPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
-              className="bg-white rounded-xl border border-border p-4 shadow-card"
+              className="bg-white rounded-xl border border-border p-4 shadow-card overflow-hidden relative"
+              style={{ borderTop: `3px solid ${stat.borderColor}` }}
             >
               <div
                 className={`w-10 h-10 rounded-lg flex items-center justify-center mb-3 ${stat.color}`}
               >
                 <stat.icon className="w-5 h-5" />
               </div>
-              <div className="text-2xl font-heading font-bold text-foreground">
-                {stat.value}
+              <div className="flex items-end gap-2">
+                <div className="text-2xl font-heading font-bold text-foreground">
+                  {stat.value}
+                </div>
+                <TrendingUp className="w-3.5 h-3.5 mb-1.5 text-emerald-500" />
               </div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 {stat.label}
@@ -1512,8 +2283,72 @@ export function AdminPage() {
           ))}
         </div>
 
+        {/* Quick Actions */}
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="mb-6"
+        >
+          <h3 className="text-sm font-semibold text-foreground mb-3">দ্রুত কাজ</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <button
+              type="button"
+              onClick={() => setActiveTab("listings")}
+              className="flex items-center gap-3 p-3 rounded-xl border border-border bg-white hover:border-blue-300 hover:bg-blue-50/50 transition-all text-left group"
+              data-ocid="admin.quickaction.listings.button"
+            >
+              <div className="w-9 h-9 rounded-lg bg-blue-100 flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                <MapPin className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-foreground">
+                  জমির লিস্টিং
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  নতুন জমি যোগ করুন
+                </div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("lawyers")}
+              className="flex items-center gap-3 p-3 rounded-xl border border-border bg-white hover:border-purple-300 hover:bg-purple-50/50 transition-all text-left group"
+              data-ocid="admin.quickaction.lawyers.button"
+            >
+              <div className="w-9 h-9 rounded-lg bg-purple-100 flex items-center justify-center group-hover:bg-purple-200 transition-colors">
+                <Scale className="w-4 h-4 text-purple-600" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-foreground">
+                  আইনজীবী
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  নতুন আইনজীবী যোগ করুন
+                </div>
+              </div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("news")}
+              className="flex items-center gap-3 p-3 rounded-xl border border-border bg-white hover:border-amber-300 hover:bg-amber-50/50 transition-all text-left group"
+              data-ocid="admin.quickaction.news.button"
+            >
+              <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center group-hover:bg-amber-200 transition-colors">
+                <Newspaper className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-foreground">সংবাদ</div>
+                <div className="text-xs text-muted-foreground">
+                  নতুন সংবাদ প্রকাশ করুন
+                </div>
+              </div>
+            </button>
+          </div>
+        </motion.div>
+
         {/* Management tabs */}
-        <Tabs defaultValue="listings">
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="mb-6">
             <TabsTrigger
               value="listings"
