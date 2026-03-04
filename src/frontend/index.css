@@ -113,13 +113,29 @@
     text-wrap: balance;
   }
 
+  /* Hero: layered vignette that preserves photo while ensuring text contrast */
   .gradient-hero {
-    background: linear-gradient(
-      135deg,
-      oklch(0.18 0.08 155 / 0.92) 0%,
-      oklch(0.25 0.1 155 / 0.85) 40%,
-      oklch(0.22 0.09 140 / 0.8) 100%
-    );
+    background:
+      /* Top fade — very subtle, lets sky show */
+      linear-gradient(
+        to bottom,
+        oklch(0.12 0.06 155 / 0.35) 0%,
+        transparent 30%
+      ),
+      /* Bottom-heavy scrim for search bar legibility */
+      linear-gradient(
+        to top,
+        oklch(0.10 0.06 155 / 0.85) 0%,
+        oklch(0.15 0.07 155 / 0.55) 35%,
+        transparent 65%
+      ),
+      /* Subtle warm-to-cool diagonal tint in the midrange */
+      linear-gradient(
+        125deg,
+        oklch(0.18 0.09 155 / 0.40) 0%,
+        oklch(0.20 0.07 145 / 0.25) 50%,
+        oklch(0.16 0.05 165 / 0.30) 100%
+      );
   }
 
   .gradient-card-hover {
@@ -155,6 +171,49 @@
   .bengali-heading {
     font-family: "Fraunces", serif;
     letter-spacing: -0.02em;
+  }
+
+  /* Section heading treatment — consistent editorial look */
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: oklch(var(--primary) / 0.7);
+    margin-bottom: 0.75rem;
+  }
+
+  .section-label::before {
+    content: "";
+    display: block;
+    width: 1.5rem;
+    height: 2px;
+    background: oklch(var(--gold));
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* Consistent display heading for all major section titles */
+  .section-title {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.025em;
+    text-wrap: balance;
+    color: oklch(var(--foreground));
+  }
+
+  /* Card hover ring — premium feel */
+  .card-interactive {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+  .card-interactive:hover {
+    box-shadow:
+      0 8px 30px oklch(0.15 0.05 155 / 0.12),
+      0 2px 8px oklch(0.15 0.05 155 / 0.07);
   }
 }
 

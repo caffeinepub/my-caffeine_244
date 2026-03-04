@@ -1,5 +1,6 @@
+import { DIVISIONS } from "@/utils/bangladeshData";
 import { Link } from "@tanstack/react-router";
-import { Heart, Mail, MapPin, Phone } from "lucide-react";
+import { Facebook, Heart, Mail, MapPin, Phone, Youtube } from "lucide-react";
 
 export function Footer() {
   const year = new Date().getFullYear();
@@ -9,6 +10,32 @@ export function Footer() {
 
   return (
     <footer className="bg-primary text-primary-foreground mt-16">
+      {/* Divisions quick links */}
+      <div className="border-b border-primary-foreground/10">
+        <div className="container max-w-7xl mx-auto px-4 py-4">
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-2 text-xs text-primary-foreground/60">
+            <span className="text-primary-foreground/40 font-semibold mr-1 shrink-0">
+              বিভাগ:
+            </span>
+            {DIVISIONS.map((div, i) => (
+              <span key={div} className="flex items-center gap-1">
+                <Link
+                  to="/listings"
+                  search={{ division: div }}
+                  data-ocid="footer.division.link"
+                  className="hover:text-gold transition-colors"
+                >
+                  {div}
+                </Link>
+                {i < DIVISIONS.length - 1 && (
+                  <span className="text-primary-foreground/20">•</span>
+                )}
+              </span>
+            ))}
+          </div>
+        </div>
+      </div>
+
       <div className="container max-w-7xl mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand */}
@@ -19,10 +46,14 @@ export function Footer() {
               </div>
               <span className="font-heading font-bold text-2xl">জমিবাজার</span>
             </div>
-            <p className="text-primary-foreground/70 text-sm max-w-xs leading-relaxed">
+            <p className="text-primary-foreground/70 text-sm max-w-xs leading-relaxed mb-4">
               বাংলাদেশের প্রথম D2C ভূমি বাজার। সরাসরি মালিকের সাথে কথা বলুন, কোনো দালাল নেই।
             </p>
-            <div className="mt-4 flex items-center gap-4 text-sm text-primary-foreground/60">
+            <div className="flex items-center gap-1 text-xs text-primary-foreground/50 mb-4">
+              <MapPin className="w-3.5 h-3.5 shrink-0" />
+              <span>ঢাকা, বাংলাদেশ</span>
+            </div>
+            <div className="flex items-center gap-4 text-sm text-primary-foreground/60">
               <a
                 href="tel:01700000000"
                 className="flex items-center gap-1 hover:text-gold transition-colors"
@@ -36,6 +67,27 @@ export function Footer() {
               >
                 <Mail className="w-4 h-4" />
                 ইমেইল
+              </a>
+            </div>
+            {/* Social links */}
+            <div className="flex items-center gap-3 mt-4">
+              <a
+                href="https://facebook.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-gold/20 hover:text-gold transition-all"
+                aria-label="Facebook"
+              >
+                <Facebook className="w-4 h-4" />
+              </a>
+              <a
+                href="https://youtube.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-8 h-8 rounded-full bg-primary-foreground/10 flex items-center justify-center hover:bg-gold/20 hover:text-gold transition-all"
+                aria-label="YouTube"
+              >
+                <Youtube className="w-4 h-4" />
               </a>
             </div>
           </div>
@@ -100,6 +152,11 @@ export function Footer() {
               <li>
                 <span className="hover:text-gold transition-colors cursor-pointer">
                   আইনি সহায়তা
+                </span>
+              </li>
+              <li>
+                <span className="hover:text-gold transition-colors cursor-pointer">
+                  গোপনীয়তা নীতি
                 </span>
               </li>
             </ul>

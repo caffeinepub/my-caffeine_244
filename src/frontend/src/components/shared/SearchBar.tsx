@@ -1,5 +1,4 @@
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -7,20 +6,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ALL_DISTRICTS,
+  DIVISIONS,
+  getDistrictsForDivision,
+  getUpazilasForDistrict,
+} from "@/utils/bangladeshData";
 import { useNavigate } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useState } from "react";
-
-const DIVISIONS = [
-  "ঢাকা",
-  "চট্টগ্রাম",
-  "সিলেট",
-  "রাজশাহী",
-  "খুলনা",
-  "বরিশাল",
-  "রংপুর",
-  "ময়মনসিংহ",
-];
 
 const LAND_TYPES = [
   { value: "all", label: "সব ধরন" },
@@ -47,15 +41,36 @@ export function SearchBar({
 }: SearchBarProps) {
   const navigate = useNavigate();
   const [division, setDivision] = useState(initialValues.division ?? "all");
-  const [district, setDistrict] = useState(initialValues.district ?? "");
-  const [upazila, setUpazila] = useState(initialValues.upazila ?? "");
+  const [district, setDistrict] = useState(initialValues.district ?? "all");
+  const [upazila, setUpazila] = useState(initialValues.upazila ?? "all");
   const [landType, setLandType] = useState(initialValues.landType ?? "all");
+
+  // Cascading districts: if division selected, show only those districts
+  const availableDistricts =
+    division && division !== "all"
+      ? getDistrictsForDivision(division)
+      : ALL_DISTRICTS;
+
+  // Cascading upazilas: if district selected, show its upazilas
+  const availableUpazilas =
+    district && district !== "all" ? getUpazilasForDistrict(district) : [];
+
+  const handleDivisionChange = (val: string) => {
+    setDivision(val);
+    setDistrict("all");
+    setUpazila("all");
+  };
+
+  const handleDistrictChange = (val: string) => {
+    setDistrict(val);
+    setUpazila("all");
+  };
 
   const handleSearch = () => {
     const params: Record<string, string> = {};
     if (division && division !== "all") params.division = division;
-    if (district) params.district = district;
-    if (upazila) params.upazila = upazila;
+    if (district && district !== "all") params.district = district;
+    if (upazila && upazila !== "all") params.upazila = upazila;
     if (landType && landType !== "all") params.landType = landType;
 
     if (onSearch) {
@@ -78,7 +93,7 @@ export function SearchBar({
             <span className="text-xs font-medium text-muted-foreground">
               বিভাগ
             </span>
-            <Select value={division} onValueChange={setDivision}>
+            <Select value={division} onValueChange={handleDivisionChange}>
               <SelectTrigger
                 data-ocid="hero.division.select"
                 className="w-full"
@@ -101,13 +116,22 @@ export function SearchBar({
             <span className="text-xs font-medium text-muted-foreground">
               জেলা
             </span>
-            <Input
-              id="hero-district"
-              data-ocid="hero.district.input"
-              placeholder="যেমন: ঢাকা, চট্টগ্রাম"
-              value={district}
-              onChange={(e) => setDistrict(e.target.value)}
-            />
+            <Select value={district} onValueChange={handleDistrictChange}>
+              <SelectTrigger
+                data-ocid="hero.district.select"
+                className="w-full"
+              >
+                <SelectValue placeholder="সব জেলা" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">সব জেলা</SelectItem>
+                {availableDistricts.map((d) => (
+                  <SelectItem key={d} value={d}>
+                    {d}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Upazila */}
@@ -115,16 +139,23 @@ export function SearchBar({
             <span className="text-xs font-medium text-muted-foreground">
               উপজেলা
             </span>
-            <Input
-              id="hero-upazila"
-              data-ocid="hero.upazila.input"
-              placeholder="উপজেলার নাম"
+            <Select
               value={upazila}
-              onChange={(e) => setUpazila(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleSearch();
-              }}
-            />
+              onValueChange={setUpazila}
+              disabled={availableUpazilas.length === 0}
+            >
+              <SelectTrigger data-ocid="hero.upazila.select" className="w-full">
+                <SelectValue placeholder="সব উপজেলা" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">সব উপজেলা</SelectItem>
+                {availableUpazilas.map((u) => (
+                  <SelectItem key={u} value={u}>
+                    {u}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Land Type */}
@@ -133,7 +164,7 @@ export function SearchBar({
               জমির ধরন
             </span>
             <Select value={landType} onValueChange={setLandType}>
-              <SelectTrigger>
+              <SelectTrigger data-ocid="hero.landtype.select">
                 <SelectValue placeholder="জমির ধরন" />
               </SelectTrigger>
               <SelectContent>
@@ -164,16 +195,22 @@ export function SearchBar({
 
   return (
     <div className="flex gap-2 flex-wrap">
-      <Input
-        data-ocid="hero.search.input"
-        placeholder="এলাকার নাম লিখুন..."
-        value={district}
-        onChange={(e) => setDistrict(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") handleSearch();
-        }}
-        className="flex-1 min-w-32"
-      />
+      <Select value={district} onValueChange={handleDistrictChange}>
+        <SelectTrigger
+          data-ocid="hero.district.select"
+          className="flex-1 min-w-32"
+        >
+          <SelectValue placeholder="জেলা বেছে নিন..." />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">সব জেলা</SelectItem>
+          {ALL_DISTRICTS.slice(0, 20).map((d) => (
+            <SelectItem key={d} value={d}>
+              {d}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Button onClick={handleSearch} data-ocid="hero.search.button" size="sm">
         <Search className="w-4 h-4 mr-1" />
         খুঁজুন

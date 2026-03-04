@@ -46,6 +46,11 @@ import {
   useUpdateListing,
   useUpdateNewsArticle,
 } from "@/hooks/useQueries";
+import {
+  DIVISIONS as BD_DIVISIONS,
+  getDistrictsForDivision,
+  getUpazilasForDistrict,
+} from "@/utils/bangladeshData";
 import { formatBDT, getLandTypeLabel, getStatusLabel } from "@/utils/format";
 import { useQueryClient } from "@tanstack/react-query";
 import {
@@ -64,17 +69,6 @@ import {
 import { motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-
-const DIVISIONS = [
-  "ঢাকা",
-  "চট্টগ্রাম",
-  "সিলেট",
-  "রাজশাহী",
-  "খুলনা",
-  "বরিশাল",
-  "রংপুর",
-  "ময়মনসিংহ",
-];
 
 function AdminLogin() {
   const { login, loginStatus } = useInternetIdentity();
@@ -166,6 +160,14 @@ function ListingsManagement() {
   };
 
   const [form, setForm] = useState<LandListing>(emptyListing);
+
+  // Cascading location dropdowns
+  const adminAvailableDistricts = form.division
+    ? getDistrictsForDivision(form.division)
+    : [];
+  const adminAvailableUpazilas = form.district
+    ? getUpazilasForDistrict(form.district)
+    : [];
 
   const openCreate = () => {
     setForm({
@@ -335,13 +337,20 @@ function ListingsManagement() {
               <Label className="text-xs">বিভাগ *</Label>
               <Select
                 value={form.division}
-                onValueChange={(v) => setForm((p) => ({ ...p, division: v }))}
+                onValueChange={(v) =>
+                  setForm((p) => ({
+                    ...p,
+                    division: v,
+                    district: "",
+                    upazila: "",
+                  }))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {DIVISIONS.map((d) => (
+                  {BD_DIVISIONS.map((d) => (
                     <SelectItem key={d} value={d}>
                       {d}
                     </SelectItem>
@@ -351,21 +360,43 @@ function ListingsManagement() {
             </div>
             <div className="space-y-1">
               <Label className="text-xs">জেলা *</Label>
-              <Input
+              <Select
                 value={form.district}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, district: e.target.value }))
+                onValueChange={(v) =>
+                  setForm((p) => ({ ...p, district: v, upazila: "" }))
                 }
-              />
+                disabled={adminAvailableDistricts.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="জেলা বেছে নিন" />
+                </SelectTrigger>
+                <SelectContent>
+                  {adminAvailableDistricts.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {d}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">উপজেলা</Label>
-              <Input
+              <Select
                 value={form.upazila}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, upazila: e.target.value }))
-                }
-              />
+                onValueChange={(v) => setForm((p) => ({ ...p, upazila: v }))}
+                disabled={adminAvailableUpazilas.length === 0}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="উপজেলা বেছে নিন" />
+                </SelectTrigger>
+                <SelectContent>
+                  {adminAvailableUpazilas.map((u) => (
+                    <SelectItem key={u} value={u}>
+                      {u}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1">
               <Label className="text-xs">ঠিকানা</Label>

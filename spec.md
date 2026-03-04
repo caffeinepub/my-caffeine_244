@@ -1,64 +1,51 @@
-# জমিবাজার - D2C Land Marketplace
+# অনলাইন জমি ক্রয়/বিক্রয় (জমিবাজার)
 
 ## Current State
-New project. No existing code.
+Full D2C land marketplace with:
+- HomePage, ListingsPage, ListingDetailPage, ComparePage, LawyersPage, NewsPage, AdminPage
+- Backend with full CRUD for listings, lawyers, news, offers, documents, property history, soil reports
+- Basic design with green/gold color scheme
+- Division-only dropdown (no districts/upazilas)
+- Generic placeholder images in listing cards and detail pages
+- Basic listing cards and form layout
 
 ## Requested Changes (Diff)
 
 ### Add
-
-**Backend Data Models:**
-- Land listings with full specs (type, road access, area, price, price-per-decimal, location, division/district/upazila)
-- Property history timeline entries per listing
-- Soil & environment report per listing
-- Document vault (encrypted document metadata) per listing
-- Offer/negotiation records (buyer offer, seller counter, status)
-- Lawyer directory profiles (name, specialization, contact, fee)
-- News/newsfeed articles (title, content, date, category)
-- Admin management: create/edit/delete listings, lawyers, news
-- Featured listing support (boolean flag, display order)
-- Legality checklist template
-- Comparison data support (multiple listings side-by-side)
-- User roles: admin vs public viewer
-
-**Frontend Pages & Features:**
-1. **Hero / Home Page** - Clean search engine with tagline "সরাসরি মালিকের সাথে কথা বলুন", filter by division/district/upazila/price range
-2. **Smart Listing Cards** - Price per decimal prominently displayed, land type icon, road access, featured badge
-3. **Listing Detail Page:**
-   - Interactive specification table with icons (land elevation, road type, area, orientation)
-   - Property history timeline
-   - Soil & environment report section
-   - Map placeholder with polygon boundary display
-   - Points of Interest section
-   - Drone/video player section
-   - Digital Document Vault (request access button)
-   - Legality checklist (auto-generated steps)
-   - Verified Direct Contact (WhatsApp button)
-   - Offer Negotiation Portal (send offer, counter, accept/reject)
-4. **Comparison Tool** - Select up to 3 listings, compare side-by-side (road width, price, documents status)
-5. **Lawyer Directory** - Partner lawyers with contact and fee info
-6. **Newsfeed** - Land law updates, area market rates
-7. **Admin Panel** (login-protected):
-   - Manage listings (CRUD, featured toggle)
-   - Manage lawyers
-   - Manage news articles
-   - View offers/negotiations
+- Bangladesh districts data (64 districts) and upazilas (sub-districts) as cascading dropdowns across all filter panels and admin forms
+- Sample data: 8+ realistic land listings with rich details, 6 lawyers, 5 news articles pre-populated
+- How-It-Works section on HomePage (3-step buyer and seller guide)
+- Testimonials section on HomePage (3 trust-building user reviews)
+- Market stats section on HomePage (market trends)
+- "Top Locations" section on HomePage showing popular districts with listing counts
+- Rich hero section upgrade: background photo with search overlay, mobile-responsive
+- Professional lawyer profile cards with ratings, experience badges
+- News page with a featured top article and sidebar layout
+- World-class listing cards: photo placeholder with gradient + land type icon, price-per-decimal prominent, animated hover effects
+- Compare page enhancement: visual comparison chart/table with icons
 
 ### Modify
-Nothing (new project).
+- ListingsPage filter panel: District dropdown (cascades from division), Upazila dropdown (cascades from district)
+- AdminPage listing form: District and Upazila now use cascading Select components instead of plain text inputs
+- HomePage stats: Replace static numbers with dynamic counts from backend
+- SearchBar: Add district cascading dropdown
+- Footer: Add 8-division quick links, richer content
+- Header: Improve visual identity, add subtle gradient/border-bottom
 
 ### Remove
-Nothing (new project).
+- Nothing removed
 
 ## Implementation Plan
-
-1. Select `authorization` and `blob-storage` components
-2. Generate Motoko backend with models for: listings, offers, lawyers, news, documents, admin ops
-3. Build frontend with all pages using React + Tailwind, Bengali language primary
-4. Admin panel protected by authorization component
-5. Offer negotiation flow with state machine (pending → accepted/rejected/countered)
-6. Document vault with access-request UI
-7. Legality checklist as interactive step-by-step guide
-8. Comparison tool with side-by-side table
-9. Lawyer directory page
-10. Newsfeed page
+1. Create `/src/frontend/src/utils/bangladeshData.ts` — full 64 districts + upazilas lookup table, division→districts mapping, district→upazilas mapping
+2. Update `SearchBar.tsx` — add cascading district/upazila selects
+3. Update `ListingsPage.tsx` — replace district/upazila free-text inputs with cascading selects using the data
+4. Update `AdminPage.tsx` — replace district/upazila text inputs with cascading selects in listing form
+5. Update `HomePage.tsx` — add How-It-Works, Testimonials, Top Locations, Market Stats sections; make stats dynamic
+6. Update `ListingCard.tsx` — richer visual card with better photo placeholder, location display
+7. Update `LawyersPage.tsx` — richer cards with star ratings, experience, specialization badges
+8. Update `NewsPage.tsx` — featured article hero + sidebar layout
+9. Update `ComparePage.tsx` — visual comparison with icons and color coding
+10. Update `Footer.tsx` — richer with division quick links and contact info
+11. Update `Header.tsx` — subtle visual improvement
+12. Update `index.css` — global typography refinements, shadow-gold utility, more polish
+13. Validate (typecheck + build)

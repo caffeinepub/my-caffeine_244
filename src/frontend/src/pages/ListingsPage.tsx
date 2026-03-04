@@ -2,7 +2,6 @@ import type { LandListing } from "@/backend.d";
 import { ListingCard } from "@/components/shared/ListingCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -14,21 +13,16 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
 import { useGetAllListings } from "@/hooks/useQueries";
+import {
+  ALL_DISTRICTS,
+  DIVISIONS,
+  getDistrictsForDivision,
+  getUpazilasForDistrict,
+} from "@/utils/bangladeshData";
 import { useSearch } from "@tanstack/react-router";
 import { Filter, MapPin, SlidersHorizontal, X } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo, useState } from "react";
-
-const DIVISIONS = [
-  "ঢাকা",
-  "চট্টগ্রাম",
-  "সিলেট",
-  "রাজশাহী",
-  "খুলনা",
-  "বরিশাল",
-  "রংপুর",
-  "ময়মনসিংহ",
-];
 
 const LAND_TYPES = [
   { value: "all", label: "সব ধরন" },
@@ -64,9 +58,28 @@ export function ListingsPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   const [division, setDivision] = useState(searchParams.division ?? "all");
-  const [district, setDistrict] = useState(searchParams.district ?? "");
-  const [upazila, setUpazila] = useState(searchParams.upazila ?? "");
+  const [district, setDistrict] = useState(searchParams.district ?? "all");
+  const [upazila, setUpazila] = useState(searchParams.upazila ?? "all");
   const [landType, setLandType] = useState(searchParams.landType ?? "all");
+
+  // Cascading location data
+  const availableDistricts =
+    division && division !== "all"
+      ? getDistrictsForDivision(division)
+      : ALL_DISTRICTS;
+  const availableUpazilas =
+    district && district !== "all" ? getUpazilasForDistrict(district) : [];
+
+  const handleDivisionChange = (val: string) => {
+    setDivision(val);
+    setDistrict("all");
+    setUpazila("all");
+  };
+
+  const handleDistrictChange = (val: string) => {
+    setDistrict(val);
+    setUpazila("all");
+  };
   const [roadAccess, setRoadAccess] = useState("all");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 20000000]);
   const [sortBy, setSortBy] = useState("newest");
@@ -82,11 +95,12 @@ export function ListingsPage() {
 
     if (division && division !== "all")
       result = result.filter((l) => l.division === division);
-    if (district)
+    if (district && district !== "all")
       result = result.filter(
-        (l) => l.district.includes(district) || l.address.includes(district),
+        (l) => l.district === district || l.address.includes(district),
       );
-    if (upazila) result = result.filter((l) => l.upazila.includes(upazila));
+    if (upazila && upazila !== "all")
+      result = result.filter((l) => l.upazila === upazila);
     if (landType && landType !== "all")
       result = result.filter((l) => l.landType === landType);
     if (roadAccess && roadAccess !== "all")
@@ -125,8 +139,8 @@ export function ListingsPage() {
 
   const activeFilters = [
     division !== "all" && { key: "division", label: division },
-    district && { key: "district", label: district },
-    upazila && { key: "upazila", label: upazila },
+    district !== "all" && { key: "district", label: district },
+    upazila !== "all" && { key: "upazila", label: upazila },
     landType !== "all" && {
       key: "landType",
       label: LAND_TYPES.find((t) => t.value === landType)?.label ?? landType,
@@ -137,8 +151,8 @@ export function ListingsPage() {
 
   const clearFilter = (key: string) => {
     if (key === "division") setDivision("all");
-    if (key === "district") setDistrict("");
-    if (key === "upazila") setUpazila("");
+    if (key === "district") setDistrict("all");
+    if (key === "upazila") setUpazila("all");
     if (key === "landType") setLandType("all");
     if (key === "verified") setVerifiedOnly(false);
     if (key === "featured") setFeaturedOnly(false);
@@ -203,8 +217,8 @@ export function ListingsPage() {
             type="button"
             onClick={() => {
               setDivision("all");
-              setDistrict("");
-              setUpazila("");
+              setDistrict("all");
+              setUpazila("all");
               setLandType("all");
               setVerifiedOnly(false);
               setFeaturedOnly(false);
@@ -233,7 +247,7 @@ export function ListingsPage() {
               {/* Division */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">বিভাগ</Label>
-                <Select value={division} onValueChange={setDivision}>
+                <Select value={division} onValueChange={handleDivisionChange}>
                   <SelectTrigger className="w-full text-sm">
                     <SelectValue placeholder="বিভাগ" />
                   </SelectTrigger>
@@ -251,23 +265,41 @@ export function ListingsPage() {
               {/* District */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">জেলা</Label>
-                <Input
-                  placeholder="জেলার নাম"
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                  className="text-sm"
-                />
+                <Select value={district} onValueChange={handleDistrictChange}>
+                  <SelectTrigger className="w-full text-sm">
+                    <SelectValue placeholder="সব জেলা" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">সব জেলা</SelectItem>
+                    {availableDistricts.map((d) => (
+                      <SelectItem key={d} value={d}>
+                        {d}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Upazila */}
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">উপজেলা</Label>
-                <Input
-                  placeholder="উপজেলার নাম"
+                <Select
                   value={upazila}
-                  onChange={(e) => setUpazila(e.target.value)}
-                  className="text-sm"
-                />
+                  onValueChange={setUpazila}
+                  disabled={availableUpazilas.length === 0}
+                >
+                  <SelectTrigger className="w-full text-sm">
+                    <SelectValue placeholder="সব উপজেলা" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">সব উপজেলা</SelectItem>
+                    {availableUpazilas.map((u) => (
+                      <SelectItem key={u} value={u}>
+                        {u}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Land Type */}
@@ -386,8 +418,8 @@ export function ListingsPage() {
                 className="mt-4"
                 onClick={() => {
                   setDivision("all");
-                  setDistrict("");
-                  setUpazila("");
+                  setDistrict("all");
+                  setUpazila("all");
                   setLandType("all");
                   setVerifiedOnly(false);
                   setFeaturedOnly(false);

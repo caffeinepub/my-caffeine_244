@@ -41,121 +41,65 @@ export function Header() {
     }
   };
 
+  const [announcementVisible, setAnnouncementVisible] = useState(true);
+
   return (
-    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-sm border-b border-border shadow-xs">
-      <div className="container max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 group">
-            <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-green">
-              <MapPin className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <div>
-              <span className="font-heading font-bold text-xl text-primary tracking-tight">
-                জমিবাজার
-              </span>
-              <div className="text-[10px] text-muted-foreground leading-none font-sans">
-                বাংলাদেশের D2C ভূমি বাজার
-              </div>
-            </div>
-          </Link>
-
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
-              const isActive =
-                link.to === "/"
-                  ? location.pathname === "/"
-                  : location.pathname.startsWith(link.to);
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  data-ocid={link.ocid}
-                  className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-foreground/70 hover:text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-            {isAdmin && (
-              <Link
-                to="/admin"
-                data-ocid="nav.admin.link"
-                className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors ${
-                  location.pathname.startsWith("/admin")
-                    ? "bg-gold/20 text-gold-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-muted"
-                }`}
-              >
-                <ShieldCheck className="w-4 h-4" />
-                অ্যাডমিন
-              </Link>
-            )}
-          </nav>
-
-          {/* Auth Button */}
-          <div className="hidden md:flex items-center gap-2">
-            <Button
-              onClick={handleAuth}
-              disabled={isLoggingIn}
-              variant={isAuthenticated ? "outline" : "default"}
-              size="sm"
-              className={
-                isAuthenticated
-                  ? ""
-                  : "bg-primary hover:bg-primary/90 shadow-green"
-              }
-            >
-              {isLoggingIn ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                  লগইন হচ্ছে...
-                </>
-              ) : isAuthenticated ? (
-                <>
-                  <LogOut className="w-4 h-4 mr-1.5" />
-                  লগআউট
-                </>
-              ) : (
-                <>
-                  <LogIn className="w-4 h-4 mr-1.5" />
-                  লগইন করুন
-                </>
-              )}
-            </Button>
-          </div>
-
-          {/* Mobile hamburger */}
-          <button
-            type="button"
-            className="md:hidden p-2 rounded-md hover:bg-muted"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="মেনু"
-          >
-            {mobileOpen ? (
-              <X className="w-5 h-5" />
-            ) : (
-              <Menu className="w-5 h-5" />
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
+    <header className="sticky top-0 z-50 shadow-xs">
+      {/* Announcement bar */}
       <AnimatePresence>
-        {mobileOpen && (
+        {announcementVisible && (
           <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t border-border bg-white overflow-hidden"
+            initial={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            className="overflow-hidden"
           >
-            <div className="container px-4 py-3 flex flex-col gap-1">
+            <div
+              className="text-xs font-medium py-2 px-4 flex items-center justify-center gap-2 relative"
+              style={{
+                background:
+                  "linear-gradient(135deg, oklch(0.55 0.14 155) 0%, oklch(0.45 0.12 150) 50%, oklch(0.60 0.16 78) 100%)",
+                color: "white",
+              }}
+            >
+              <span className="hidden sm:inline">
+                🏆 বাংলাদেশের প্রথম D2C ভূমি বাজার — দালাল মুক্ত, সরাসরি মালিক
+              </span>
+              <span className="sm:hidden">🏆 দালাল মুক্ত ভূমি বাজার</span>
+              <button
+                type="button"
+                onClick={() => setAnnouncementVisible(false)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-white/20 transition-colors"
+                aria-label="বন্ধ করুন"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main nav */}
+      <div className="bg-white/95 backdrop-blur-sm border-b border-border">
+        <div className="container max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link to="/" className="flex items-center gap-2 group">
+              <div className="w-9 h-9 bg-primary rounded-lg flex items-center justify-center shadow-green">
+                <MapPin className="w-5 h-5 text-primary-foreground" />
+              </div>
+              <div>
+                <span className="font-heading font-bold text-xl text-primary tracking-tight">
+                  জমিবাজার
+                </span>
+                <div className="text-[10px] text-muted-foreground leading-none font-sans">
+                  বাংলাদেশের D2C ভূমি বাজার
+                </div>
+              </div>
+            </Link>
+
+            {/* Desktop Nav */}
+            <nav className="hidden md:flex items-center gap-1">
               {navLinks.map((link) => {
                 const isActive =
                   link.to === "/"
@@ -166,8 +110,7 @@ export function Header() {
                     key={link.to}
                     to={link.to}
                     data-ocid={link.ocid}
-                    onClick={() => setMobileOpen(false)}
-                    className={`px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                    className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
                       isActive
                         ? "bg-primary/10 text-primary"
                         : "text-foreground/70 hover:text-foreground hover:bg-muted"
@@ -181,31 +124,127 @@ export function Header() {
                 <Link
                   to="/admin"
                   data-ocid="nav.admin.link"
-                  onClick={() => setMobileOpen(false)}
-                  className="px-3 py-2.5 rounded-md text-sm font-medium flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  className={`px-3 py-2 rounded-md text-sm font-medium flex items-center gap-1.5 transition-colors ${
+                    location.pathname.startsWith("/admin")
+                      ? "bg-gold/20 text-gold-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                  }`}
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  অ্যাডমিন প্যানেল
+                  অ্যাডমিন
                 </Link>
               )}
-              <div className="pt-2 border-t border-border mt-1">
-                <Button
-                  onClick={handleAuth}
-                  disabled={isLoggingIn}
-                  variant={isAuthenticated ? "outline" : "default"}
-                  className="w-full"
-                >
-                  {isLoggingIn
-                    ? "লগইন হচ্ছে..."
-                    : isAuthenticated
-                      ? "লগআউট"
-                      : "লগইন করুন"}
-                </Button>
-              </div>
+            </nav>
+
+            {/* Auth Button */}
+            <div className="hidden md:flex items-center gap-2">
+              <Button
+                onClick={handleAuth}
+                disabled={isLoggingIn}
+                variant={isAuthenticated ? "outline" : "default"}
+                size="sm"
+                className={
+                  isAuthenticated
+                    ? ""
+                    : "bg-primary hover:bg-primary/90 shadow-green"
+                }
+              >
+                {isLoggingIn ? (
+                  <>
+                    <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
+                    লগইন হচ্ছে...
+                  </>
+                ) : isAuthenticated ? (
+                  <>
+                    <LogOut className="w-4 h-4 mr-1.5" />
+                    লগআউট
+                  </>
+                ) : (
+                  <>
+                    <LogIn className="w-4 h-4 mr-1.5" />
+                    লগইন করুন
+                  </>
+                )}
+              </Button>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+
+            {/* Mobile hamburger */}
+            <button
+              type="button"
+              className="md:hidden p-2 rounded-md hover:bg-muted"
+              onClick={() => setMobileOpen(!mobileOpen)}
+              aria-label="মেনু"
+            >
+              {mobileOpen ? (
+                <X className="w-5 h-5" />
+              ) : (
+                <Menu className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile Menu */}
+        <AnimatePresence>
+          {mobileOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              className="md:hidden border-t border-border bg-white overflow-hidden"
+            >
+              <div className="container px-4 py-3 flex flex-col gap-1">
+                {navLinks.map((link) => {
+                  const isActive =
+                    link.to === "/"
+                      ? location.pathname === "/"
+                      : location.pathname.startsWith(link.to);
+                  return (
+                    <Link
+                      key={link.to}
+                      to={link.to}
+                      data-ocid={link.ocid}
+                      onClick={() => setMobileOpen(false)}
+                      className={`px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-primary/10 text-primary"
+                          : "text-foreground/70 hover:text-foreground hover:bg-muted"
+                      }`}
+                    >
+                      {link.label}
+                    </Link>
+                  );
+                })}
+                {isAdmin && (
+                  <Link
+                    to="/admin"
+                    data-ocid="nav.admin.link"
+                    onClick={() => setMobileOpen(false)}
+                    className="px-3 py-2.5 rounded-md text-sm font-medium flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-muted"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    অ্যাডমিন প্যানেল
+                  </Link>
+                )}
+                <div className="pt-2 border-t border-border mt-1">
+                  <Button
+                    onClick={handleAuth}
+                    disabled={isLoggingIn}
+                    variant={isAuthenticated ? "outline" : "default"}
+                    className="w-full"
+                  >
+                    {isLoggingIn
+                      ? "লগইন হচ্ছে..."
+                      : isAuthenticated
+                        ? "লগআউট"
+                        : "লগইন করুন"}
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </header>
   );
 }
