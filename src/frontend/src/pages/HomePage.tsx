@@ -3,7 +3,7 @@ import { SearchBar } from "@/components/shared/SearchBar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetAllListings, useGetFeaturedListings } from "@/hooks/useQueries";
+import { useLocalListings } from "@/hooks/useLocalStore";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { POPULAR_LOCATIONS } from "@/utils/bangladeshData";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -113,9 +113,9 @@ const locationIconMap: Record<string, string> = {
 
 export function HomePage() {
   const { settings } = useSiteSettings();
-  const { data: featured, isLoading: featuredLoading } =
-    useGetFeaturedListings();
-  const { data: allListings } = useGetAllListings();
+  const { listings: allListings } = useLocalListings();
+  const featured = allListings.filter((l) => l.isFeatured);
+  const featuredLoading = false;
   const navigate = useNavigate();
 
   const stats = settings.stats.map((s, i) => ({ ...s, icon: statIcons[i] }));

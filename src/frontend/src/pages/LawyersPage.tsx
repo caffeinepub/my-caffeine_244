@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetAllLawyers } from "@/hooks/useQueries";
+import { useLocalLawyers } from "@/hooks/useLocalStore";
 import { formatBDT } from "@/utils/format";
 import {
   Award,
@@ -44,16 +44,15 @@ function StarRating({ count, filled }: { count: number; filled: number }) {
 }
 
 export function LawyersPage() {
-  const { data: lawyers, isLoading } = useGetAllLawyers();
+  const { lawyers } = useLocalLawyers();
+  const isLoading = false;
   const [search, setSearch] = useState("");
   const [availabilityFilter, setAvailabilityFilter] = useState("all");
   const [specFilter, setSpecFilter] = useState("all");
 
-  const specializations = [
-    ...new Set(lawyers?.map((l) => l.specialization) ?? []),
-  ];
+  const specializations = [...new Set(lawyers.map((l) => l.specialization))];
 
-  const filtered = (lawyers ?? []).filter((l) => {
+  const filtered = lawyers.filter((l) => {
     const matchSearch =
       !search ||
       l.name.includes(search) ||

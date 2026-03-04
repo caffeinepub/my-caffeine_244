@@ -16,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import {
   Table,
@@ -28,22 +27,11 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useActor } from "@/hooks/useActor";
 import {
-  useCreateLawyer,
-  useCreateListing,
-  useCreateNewsArticle,
-  useDeleteLawyer,
-  useDeleteListing,
-  useDeleteNewsArticle,
-  useGetAllLawyers,
-  useGetAllListings,
-  useGetAllNews,
-  useToggleFeatured,
-  useUpdateLawyer,
-  useUpdateListing,
-  useUpdateNewsArticle,
-} from "@/hooks/useQueries";
+  useLocalLawyers,
+  useLocalListings,
+  useLocalNews,
+} from "@/hooks/useLocalStore";
 import { useSiteSettings } from "@/hooks/useSiteSettings";
 import type { SiteSettings } from "@/hooks/useSiteSettings";
 import {
@@ -52,7 +40,7 @@ import {
   getUpazilasForDistrict,
 } from "@/utils/bangladeshData";
 import { formatBDT, getLandTypeLabel, getStatusLabel } from "@/utils/format";
-import { getSecretParameter } from "@/utils/urlParams";
+
 import type React from "react";
 
 import { Link } from "@tanstack/react-router";
@@ -228,7 +216,6 @@ function FormDialogShell({
 type LoginView = "login" | "forgot" | "reset_success";
 
 function AdminLogin({ onLogin }: { onLogin: () => void }) {
-  const { actor } = useActor();
   const [view, setView] = useState<LoginView>("login");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -250,20 +237,6 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
     await new Promise((r) => setTimeout(r, 400));
     const creds = getAdminCredentials();
     if (username === creds.username && password === creds.password) {
-      // Initialize backend actor with admin token so mutations work
-      try {
-        const token = getSecretParameter("caffeineAdminToken") || "";
-        if (actor && token) {
-          // _initializeAccessControlWithSecret is a platform method not in the type def
-          await (
-            actor as unknown as {
-              _initializeAccessControlWithSecret: (t: string) => Promise<void>;
-            }
-          )._initializeAccessControlWithSecret(token);
-        }
-      } catch {
-        // Non-fatal — proceed with login even if token init fails
-      }
       onLogin();
     } else {
       toast.error("ভুল ইউজারনেম বা পাসওয়ার্ড");
@@ -1352,12 +1325,9 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
 
 // ===== LISTINGS MANAGEMENT =====
 function ListingsManagement() {
-  const { actor, isFetching: actorFetching } = useActor();
-  const { data: listings, isLoading } = useGetAllListings();
-  const deleteMut = useDeleteListing();
-  const toggleFeaturedMut = useToggleFeatured();
-  const createMut = useCreateListing();
-  const updateMut = useUpdateListing();
+  const { listings, create, update, remove, toggleFeatured } =
+    useLocalListings();
+  const [isSaving, setIsSaving] = useState(false);
   const [editListing, setEditListing] = useState<LandListing | null>(null);
   const [showForm, setShowForm] = useState(false);
 
@@ -1416,39 +1386,32 @@ function ListingsManagement() {
   };
 
   const handleSave = async () => {
-    if (!actor || actorFetching) {
-      toast.error("সার্ভারের সাথে সংযোগ নেই। পেজ রিফ্রেশ করুন।");
-      return;
-    }
     if (!form.title || !form.district) {
       toast.error("শিরোনাম ও জেলা আবশ্যক");
       return;
     }
+    setIsSaving(true);
+    await new Promise((r) => setTimeout(r, 200));
     try {
       if (editListing) {
-        await updateMut.mutateAsync({
-          ...form,
-          updatedAt: BigInt(Date.now() * 1_000_000),
-        });
+        update({ ...form, updatedAt: BigInt(Date.now() * 1_000_000) });
         toast.success("আপডেট হয়েছে");
       } else {
-        await createMut.mutateAsync(form);
+        create(form);
         toast.success("নতুন লিস্টিং যোগ করা হয়েছে");
       }
       setShowForm(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`সংরক্ষণ ব্যর্থ: ${msg}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    try {
-      await deleteMut.mutateAsync(id);
-      toast.success("মুছে ফেলা হয়েছে");
-    } catch {
-      toast.error("মুছতে সমস্যা হয়েছে");
-    }
+  const handleDelete = (id: string) => {
+    remove(id);
+    toast.success("মুছে ফেলা হয়েছে");
   };
 
   return (
@@ -1495,7 +1458,7 @@ function ListingsManagement() {
                   border: "1px solid oklch(0.52 0.16 240 / 0.22)",
                 }}
               >
-                {listings?.length ?? 0} টি আছে
+                {listings.length} টি আছে
               </motion.span>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -1520,89 +1483,80 @@ function ListingsManagement() {
 
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-heading font-bold text-foreground">
-          লিস্টিং ব্যবস্থাপনা ({listings?.length ?? 0})
+          লিস্টিং ব্যবস্থাপনা ({listings.length})
         </h3>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {["a", "b", "c", "d"].map((k) => (
-            <Skeleton key={k} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-border overflow-hidden shadow-card">
-          <Table data-ocid="admin.listings.table">
-            <TableHeader>
-              <TableRow>
-                <TableHead>শিরোনাম</TableHead>
-                <TableHead>অবস্থান</TableHead>
-                <TableHead>মূল্য</TableHead>
-                <TableHead>ধরন</TableHead>
-                <TableHead>অবস্থা</TableHead>
-                <TableHead>বৈশিষ্ট্য</TableHead>
-                <TableHead>ক্রিয়া</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(listings ?? []).map((l, i) => (
-                <TableRow key={l.id}>
-                  <TableCell className="font-medium text-sm max-w-xs">
-                    <span className="line-clamp-1">{l.title}</span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {l.district}
-                  </TableCell>
-                  <TableCell className="text-sm font-semibold text-primary">
-                    {formatBDT(l.price)}
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {getLandTypeLabel(l.landType)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={l.status === "active" ? "default" : "secondary"}
-                      className="text-xs"
+      <div className="bg-white rounded-xl border border-border overflow-hidden shadow-card">
+        <Table data-ocid="admin.listings.table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>শিরোনাম</TableHead>
+              <TableHead>অবস্থান</TableHead>
+              <TableHead>মূল্য</TableHead>
+              <TableHead>ধরন</TableHead>
+              <TableHead>অবস্থা</TableHead>
+              <TableHead>বৈশিষ্ট্য</TableHead>
+              <TableHead>ক্রিয়া</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {listings.map((l, i) => (
+              <TableRow key={l.id}>
+                <TableCell className="font-medium text-sm max-w-xs">
+                  <span className="line-clamp-1">{l.title}</span>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {l.district}
+                </TableCell>
+                <TableCell className="text-sm font-semibold text-primary">
+                  {formatBDT(l.price)}
+                </TableCell>
+                <TableCell className="text-sm">
+                  {getLandTypeLabel(l.landType)}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant={l.status === "active" ? "default" : "secondary"}
+                    className="text-xs"
+                  >
+                    {getStatusLabel(l.status)}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <Switch
+                    data-ocid={`admin.listing.featured.toggle.${i + 1}`}
+                    checked={l.isFeatured}
+                    onCheckedChange={() => toggleFeatured(l.id)}
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-ocid={`admin.listing.edit_button.${i + 1}`}
+                      onClick={() => openEdit(l)}
+                      className="h-8 px-2.5 gap-1.5 text-xs"
                     >
-                      {getStatusLabel(l.status)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Switch
-                      data-ocid={`admin.listing.featured.toggle.${i + 1}`}
-                      checked={l.isFeatured}
-                      onCheckedChange={() => toggleFeaturedMut.mutate(l.id)}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        data-ocid={`admin.listing.edit_button.${i + 1}`}
-                        onClick={() => openEdit(l)}
-                        className="h-8 px-2.5 gap-1.5 text-xs"
-                      >
-                        <Pencil className="w-3.5 h-3.5" /> এডিট
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        data-ocid={`admin.listing.delete_button.${i + 1}`}
-                        onClick={() => handleDelete(l.id)}
-                        disabled={deleteMut.isPending}
-                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                      <Pencil className="w-3.5 h-3.5" /> এডিট
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-ocid={`admin.listing.delete_button.${i + 1}`}
+                      onClick={() => handleDelete(l.id)}
+                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Listing Form Dialog */}
       <Dialog open={showForm} onOpenChange={setShowForm}>
@@ -1888,7 +1842,7 @@ function ListingsManagement() {
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={createMut.isPending || updateMut.isPending}
+                disabled={isSaving}
                 className="rounded-xl h-11 px-8 font-bold text-white shadow-md"
                 style={{
                   background:
@@ -1896,7 +1850,7 @@ function ListingsManagement() {
                 }}
                 data-ocid="admin.save_button"
               >
-                {createMut.isPending || updateMut.isPending ? (
+                {isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     সংরক্ষণ হচ্ছে...
@@ -1915,11 +1869,8 @@ function ListingsManagement() {
 
 // ===== LAWYERS MANAGEMENT =====
 function LawyersManagement() {
-  const { actor: lawyerActor, isFetching: lawyerActorFetching } = useActor();
-  const { data: lawyers, isLoading } = useGetAllLawyers();
-  const createMut = useCreateLawyer();
-  const updateMut = useUpdateLawyer();
-  const deleteMut = useDeleteLawyer();
+  const { lawyers, create, update, remove } = useLocalLawyers();
+  const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editLawyer, setEditLawyer] = useState<Lawyer | null>(null);
 
@@ -1956,29 +1907,26 @@ function LawyersManagement() {
   };
 
   const handleSave = async () => {
-    if (!lawyerActor || lawyerActorFetching) {
-      toast.error("সার্ভারের সাথে সংযোগ নেই। পেজ রিফ্রেশ করুন।");
-      return;
-    }
     if (!form.name || !form.phone) {
       toast.error("নাম ও ফোন আবশ্যক");
       return;
     }
+    setIsSaving(true);
+    await new Promise((r) => setTimeout(r, 200));
     try {
       if (editLawyer) {
-        await updateMut.mutateAsync({
-          ...form,
-          updatedAt: BigInt(Date.now() * 1_000_000),
-        });
+        update({ ...form, updatedAt: BigInt(Date.now() * 1_000_000) });
         toast.success("আপডেট হয়েছে");
       } else {
-        await createMut.mutateAsync(form);
+        create(form);
         toast.success("আইনজীবী যোগ করা হয়েছে");
       }
       setShowForm(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`সংরক্ষণ ব্যর্থ: ${msg}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -2026,7 +1974,7 @@ function LawyersManagement() {
                   border: "1px solid oklch(0.52 0.15 300 / 0.22)",
                 }}
               >
-                {lawyers?.length ?? 0} জন আছেন
+                {lawyers.length} জন আছেন
               </motion.span>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -2051,77 +1999,69 @@ function LawyersManagement() {
 
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-heading font-bold text-foreground">
-          আইনজীবী ব্যবস্থাপনা ({lawyers?.length ?? 0})
+          আইনজীবী ব্যবস্থাপনা ({lawyers.length})
         </h3>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {["a", "b", "c"].map((k) => (
-            <Skeleton key={k} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-border overflow-hidden shadow-card">
-          <Table data-ocid="admin.lawyers.table">
-            <TableHeader>
-              <TableRow>
-                <TableHead>নাম</TableHead>
-                <TableHead>বিশেষজ্ঞতা</TableHead>
-                <TableHead>ফোন</TableHead>
-                <TableHead>ফি</TableHead>
-                <TableHead>উপলব্ধ</TableHead>
-                <TableHead>ক্রিয়া</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(lawyers ?? []).map((l, i) => (
-                <TableRow key={l.id}>
-                  <TableCell className="font-medium text-sm">
-                    {l.name}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {l.specialization}
-                  </TableCell>
-                  <TableCell className="text-sm">{l.phone}</TableCell>
-                  <TableCell className="text-sm font-semibold text-primary">
-                    {formatBDT(l.consultationFee)}
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      className={`text-xs ${l.isAvailable ? "bg-emerald-100 text-emerald-700" : "bg-red-50 text-red-600"}`}
+      <div className="bg-white rounded-xl border border-border overflow-hidden shadow-card">
+        <Table data-ocid="admin.lawyers.table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>নাম</TableHead>
+              <TableHead>বিশেষজ্ঞতা</TableHead>
+              <TableHead>ফোন</TableHead>
+              <TableHead>ফি</TableHead>
+              <TableHead>উপলব্ধ</TableHead>
+              <TableHead>ক্রিয়া</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {lawyers.map((l, i) => (
+              <TableRow key={l.id}>
+                <TableCell className="font-medium text-sm">{l.name}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {l.specialization}
+                </TableCell>
+                <TableCell className="text-sm">{l.phone}</TableCell>
+                <TableCell className="text-sm font-semibold text-primary">
+                  {formatBDT(l.consultationFee)}
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    className={`text-xs ${l.isAvailable ? "bg-emerald-100 text-emerald-700" : "bg-red-50 text-red-600"}`}
+                  >
+                    {l.isAvailable ? "হ্যাঁ" : "না"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-ocid={`admin.lawyer.edit_button.${i + 1}`}
+                      onClick={() => openEdit(l)}
+                      className="h-8 px-2.5 gap-1.5 text-xs"
                     >
-                      {l.isAvailable ? "হ্যাঁ" : "না"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        data-ocid={`admin.lawyer.edit_button.${i + 1}`}
-                        onClick={() => openEdit(l)}
-                        className="h-8 px-2.5 gap-1.5 text-xs"
-                      >
-                        <Pencil className="w-3.5 h-3.5" /> এডিট
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteMut.mutate(l.id)}
-                        disabled={deleteMut.isPending}
-                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                      <Pencil className="w-3.5 h-3.5" /> এডিট
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        remove(l.id);
+                        toast.success("মুছে ফেলা হয়েছে");
+                      }}
+                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent
@@ -2263,7 +2203,7 @@ function LawyersManagement() {
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={createMut.isPending || updateMut.isPending}
+                disabled={isSaving}
                 className="rounded-xl h-11 px-8 font-bold text-white shadow-md"
                 style={{
                   background:
@@ -2271,7 +2211,7 @@ function LawyersManagement() {
                 }}
                 data-ocid="admin.lawyers.save_button"
               >
-                {createMut.isPending || updateMut.isPending ? (
+                {isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     সংরক্ষণ হচ্ছে...
@@ -2290,11 +2230,8 @@ function LawyersManagement() {
 
 // ===== NEWS MANAGEMENT =====
 function NewsManagement() {
-  const { actor: newsActor, isFetching: newsActorFetching } = useActor();
-  const { data: news, isLoading } = useGetAllNews();
-  const createMut = useCreateNewsArticle();
-  const updateMut = useUpdateNewsArticle();
-  const deleteMut = useDeleteNewsArticle();
+  const { news, create, update, remove } = useLocalNews();
+  const [isSaving, setIsSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editArticle, setEditArticle] = useState<NewsArticle | null>(null);
 
@@ -2329,29 +2266,26 @@ function NewsManagement() {
   };
 
   const handleSave = async () => {
-    if (!newsActor || newsActorFetching) {
-      toast.error("সার্ভারের সাথে সংযোগ নেই। পেজ রিফ্রেশ করুন।");
-      return;
-    }
     if (!form.title || !form.content) {
       toast.error("শিরোনাম ও বিষয়বস্তু আবশ্যক");
       return;
     }
+    setIsSaving(true);
+    await new Promise((r) => setTimeout(r, 200));
     try {
       if (editArticle) {
-        await updateMut.mutateAsync({
-          ...form,
-          updatedAt: BigInt(Date.now() * 1_000_000),
-        });
+        update({ ...form, updatedAt: BigInt(Date.now() * 1_000_000) });
         toast.success("আপডেট হয়েছে");
       } else {
-        await createMut.mutateAsync(form);
+        create(form);
         toast.success("সংবাদ প্রকাশিত হয়েছে");
       }
       setShowForm(false);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       toast.error(`সংরক্ষণ ব্যর্থ: ${msg}`);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -2399,7 +2333,7 @@ function NewsManagement() {
                   border: "1px solid oklch(0.62 0.18 78 / 0.22)",
                 }}
               >
-                {news?.length ?? 0} টি আছে
+                {news.length} টি আছে
               </motion.span>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -2424,73 +2358,67 @@ function NewsManagement() {
 
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-heading font-bold text-foreground">
-          সংবাদ ব্যবস্থাপনা ({news?.length ?? 0})
+          সংবাদ ব্যবস্থাপনা ({news.length})
         </h3>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-2">
-          {["a", "b", "c"].map((k) => (
-            <Skeleton key={k} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl border border-border overflow-hidden shadow-card">
-          <Table data-ocid="admin.news.table">
-            <TableHeader>
-              <TableRow>
-                <TableHead>শিরোনাম</TableHead>
-                <TableHead>বিভাগ</TableHead>
-                <TableHead>লেখক</TableHead>
-                <TableHead>প্রকাশিত</TableHead>
-                <TableHead>ক্রিয়া</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {(news ?? []).map((a, i) => (
-                <TableRow key={a.id}>
-                  <TableCell className="font-medium text-sm max-w-xs">
-                    <span className="line-clamp-1">{a.title}</span>
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {a.category}
-                  </TableCell>
-                  <TableCell className="text-sm">{a.author}</TableCell>
-                  <TableCell>
-                    <Badge
-                      className={`text-xs ${a.isPublished ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}`}
+      <div className="bg-white rounded-xl border border-border overflow-hidden shadow-card">
+        <Table data-ocid="admin.news.table">
+          <TableHeader>
+            <TableRow>
+              <TableHead>শিরোনাম</TableHead>
+              <TableHead>বিভাগ</TableHead>
+              <TableHead>লেখক</TableHead>
+              <TableHead>প্রকাশিত</TableHead>
+              <TableHead>ক্রিয়া</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {news.map((a, i) => (
+              <TableRow key={a.id}>
+                <TableCell className="font-medium text-sm max-w-xs">
+                  <span className="line-clamp-1">{a.title}</span>
+                </TableCell>
+                <TableCell className="text-sm text-muted-foreground">
+                  {a.category}
+                </TableCell>
+                <TableCell className="text-sm">{a.author}</TableCell>
+                <TableCell>
+                  <Badge
+                    className={`text-xs ${a.isPublished ? "bg-emerald-100 text-emerald-700" : "bg-muted text-muted-foreground"}`}
+                  >
+                    {a.isPublished ? "হ্যাঁ" : "না"}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex gap-1.5">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-ocid={`admin.news.edit_button.${i + 1}`}
+                      onClick={() => openEdit(a)}
+                      className="h-8 px-2.5 gap-1.5 text-xs"
                     >
-                      {a.isPublished ? "হ্যাঁ" : "না"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1.5">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        data-ocid={`admin.news.edit_button.${i + 1}`}
-                        onClick={() => openEdit(a)}
-                        className="h-8 px-2.5 gap-1.5 text-xs"
-                      >
-                        <Pencil className="w-3.5 h-3.5" /> এডিট
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => deleteMut.mutate(a.id)}
-                        disabled={deleteMut.isPending}
-                        className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+                      <Pencil className="w-3.5 h-3.5" /> এডিট
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        remove(a.id);
+                        toast.success("মুছে ফেলা হয়েছে");
+                      }}
+                      className="h-8 w-8 p-0 text-destructive hover:bg-destructive/10"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       <Dialog open={showForm} onOpenChange={setShowForm}>
         <DialogContent
@@ -2601,7 +2529,7 @@ function NewsManagement() {
               </Button>
               <Button
                 onClick={handleSave}
-                disabled={createMut.isPending || updateMut.isPending}
+                disabled={isSaving}
                 className="rounded-xl h-11 px-8 font-bold text-white shadow-md"
                 style={{
                   background:
@@ -2609,7 +2537,7 @@ function NewsManagement() {
                 }}
                 data-ocid="admin.news.save_button"
               >
-                {createMut.isPending || updateMut.isPending ? (
+                {isSaving ? (
                   <>
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     সংরক্ষণ হচ্ছে...
@@ -3350,9 +3278,9 @@ function AccountManagement() {
 
 export function AdminPage() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
-  const { data: listings } = useGetAllListings();
-  const { data: lawyers } = useGetAllLawyers();
-  const { data: news } = useGetAllNews();
+  const { listings } = useLocalListings();
+  const { lawyers } = useLocalLawyers();
+  const { news } = useLocalNews();
   const [activeTab, setActiveTab] = useState("listings");
 
   if (!isAdminLoggedIn)
@@ -3363,28 +3291,28 @@ export function AdminPage() {
   const dashStats = [
     {
       label: "মোট লিস্টিং",
-      value: listings?.length ?? 0,
+      value: listings.length,
       icon: MapPin,
       color: "bg-blue-50 text-blue-700",
       borderColor: "oklch(0.55 0.14 240)",
     },
     {
       label: "আইনজীবী",
-      value: lawyers?.length ?? 0,
+      value: lawyers.length,
       icon: Scale,
       color: "bg-purple-50 text-purple-700",
       borderColor: "oklch(0.55 0.14 300)",
     },
     {
       label: "সংবাদ",
-      value: news?.length ?? 0,
+      value: news.length,
       icon: Newspaper,
       color: "bg-amber-50 text-amber-700",
       borderColor: "oklch(0.65 0.18 78)",
     },
     {
       label: "প্রকাশিত সংবাদ",
-      value: news?.filter((n) => n.isPublished).length ?? 0,
+      value: news.filter((n) => n.isPublished).length,
       icon: TrendingUp,
       color: "bg-emerald-50 text-emerald-700",
       borderColor: "oklch(0.55 0.16 155)",

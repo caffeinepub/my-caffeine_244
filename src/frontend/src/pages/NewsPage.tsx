@@ -2,7 +2,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetNewsArticle, useGetPublishedNews } from "@/hooks/useQueries";
+import { useLocalNews } from "@/hooks/useLocalStore";
 import { formatDate } from "@/utils/format";
 import {
   ArrowLeft,
@@ -38,23 +38,8 @@ function estimateReadingTime(content: string): number {
 }
 
 function NewsArticleDetail({ id, onBack }: { id: string; onBack: () => void }) {
-  const { data: article, isLoading } = useGetNewsArticle(id);
-
-  if (isLoading) {
-    return (
-      <div className="max-w-3xl mx-auto">
-        <Skeleton className="h-8 w-32 mb-6" />
-        <Skeleton className="h-64 w-full rounded-xl mb-6" />
-        <Skeleton className="h-6 w-3/4 mb-3" />
-        <Skeleton className="h-4 w-1/2 mb-6" />
-        <div className="space-y-3">
-          {["l1", "l2", "l3", "l4", "l5", "l6"].map((k) => (
-            <Skeleton key={k} className="h-4 w-full" />
-          ))}
-        </div>
-      </div>
-    );
-  }
+  const { news } = useLocalNews();
+  const article = news.find((a) => a.id === id) ?? null;
 
   if (!article) {
     return (
@@ -128,7 +113,9 @@ function NewsArticleDetail({ id, onBack }: { id: string; onBack: () => void }) {
 }
 
 export function NewsPage() {
-  const { data: news, isLoading } = useGetPublishedNews();
+  const { news: allNews } = useLocalNews();
+  const news = allNews.filter((a) => a.isPublished);
+  const isLoading = false;
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedArticleId, setSelectedArticleId] = useState<string | null>(
@@ -146,7 +133,7 @@ export function NewsPage() {
     );
   }
 
-  const filtered = (news ?? []).filter((a) => {
+  const filtered = news.filter((a) => {
     const matchCat =
       selectedCategory === "all" || a.category === selectedCategory;
     const matchSearch =

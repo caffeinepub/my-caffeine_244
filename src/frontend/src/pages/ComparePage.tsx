@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGetAllListings } from "@/hooks/useQueries";
+import { useLocalListings } from "@/hooks/useLocalStore";
 import {
   formatArea,
   formatBDT,
@@ -28,13 +28,13 @@ import { useState } from "react";
 export function ComparePage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: listings, isLoading } = useGetAllListings();
+  const { listings } = useLocalListings();
+  const isLoading = false;
 
-  const selectedListings =
-    listings?.filter((l) => selectedIds.includes(l.id)) ?? [];
+  const selectedListings = listings.filter((l) => selectedIds.includes(l.id));
 
   const filteredListings =
-    listings?.filter(
+    listings.filter(
       (l) =>
         !selectedIds.includes(l.id) &&
         (l.title.includes(searchQuery) ||

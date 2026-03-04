@@ -14,10 +14,10 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useInternetIdentity } from "@/hooks/useInternetIdentity";
+import { useLocalListings } from "@/hooks/useLocalStore";
 import {
   useCounterOffer,
   useGetDocuments,
-  useGetListing,
   useGetOffersByListing,
   useGetPropertyHistory,
   useGetSoilReport,
@@ -83,7 +83,9 @@ export function ListingDetailPage() {
   const [counterPrice, setCounterPrice] = useState("");
   const [counterMessage, setCounterMessage] = useState("");
 
-  const { data: listing, isLoading } = useGetListing(id);
+  const { listings } = useLocalListings();
+  const listing = listings.find((l) => l.id === id) ?? null;
+  const isLoading = false;
   const { data: history } = useGetPropertyHistory(id);
   const { data: soilReport } = useGetSoilReport(id);
   const { data: documents } = useGetDocuments(id);

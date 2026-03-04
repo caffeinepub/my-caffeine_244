@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Slider } from "@/components/ui/slider";
-import { useGetAllListings } from "@/hooks/useQueries";
+import { useLocalListings } from "@/hooks/useLocalStore";
 import {
   ALL_DISTRICTS,
   DIVISIONS,
@@ -86,7 +86,8 @@ export function ListingsPage() {
   const [verifiedOnly, setVerifiedOnly] = useState(false);
   const [featuredOnly, setFeaturedOnly] = useState(false);
 
-  const { data: listings, isLoading } = useGetAllListings();
+  const { listings } = useLocalListings();
+  const isLoading = false;
 
   const filtered = useMemo(() => {
     if (!listings) return [];

@@ -420,6 +420,13 @@ const SAMPLE_NEWS: NewsArticle[] = [
   },
 ];
 
+// Export sample data for useLocalStore seeding
+export const SAMPLE_DATA = {
+  listings: SAMPLE_LISTINGS,
+  lawyers: SAMPLE_LAWYERS,
+  news: SAMPLE_NEWS,
+};
+
 export function useSampleData() {
   const { actor, isFetching } = useActor();
   const { data: listings } = useGetAllListings();
