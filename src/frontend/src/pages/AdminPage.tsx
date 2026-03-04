@@ -45,6 +45,8 @@ import {
   useUpdateListing,
   useUpdateNewsArticle,
 } from "@/hooks/useQueries";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
+import type { SiteSettings } from "@/hooks/useSiteSettings";
 import {
   DIVISIONS as BD_DIVISIONS,
   getDistrictsForDivision,
@@ -58,6 +60,7 @@ import {
   ArrowRight,
   Check,
   ChevronRight,
+  Eye,
   Home,
   Info,
   Loader2,
@@ -65,8 +68,10 @@ import {
   LogOut,
   MapPin,
   Newspaper,
+  Palette,
   Pencil,
   Plus,
+  RotateCcw,
   Scale,
   ShieldCheck,
   Star,
@@ -2054,6 +2059,407 @@ function NewsManagement() {
   );
 }
 
+// ===== SITE SETTINGS MANAGEMENT =====
+function SiteSettingsManagement() {
+  const { settings, updateSettings, resetToDefaults } = useSiteSettings();
+  // Stable keys for fixed-size array items (these arrays never change length)
+  const STAT_KEYS = [
+    "stat-active",
+    "stat-verified",
+    "stat-transactions",
+    "stat-users",
+  ] as const;
+  const FEATURE_KEYS = [
+    "feat-contact",
+    "feat-verified",
+    "feat-legal",
+    "feat-vault",
+  ] as const;
+  const STEP_KEYS = ["step-01", "step-02", "step-03"] as const;
+
+  const [local, setLocal] = useState<SiteSettings>(() => ({
+    ...settings,
+    stats: settings.stats.map((s) => ({ ...s })),
+    features: settings.features.map((f) => ({ ...f })),
+    howItWorksSteps: settings.howItWorksSteps.map((s) => ({ ...s })),
+  }));
+
+  const handleSave = () => {
+    updateSettings(local);
+    toast.success("সাইট সেটিংস সংরক্ষিত হয়েছে");
+  };
+
+  const handleReset = () => {
+    resetToDefaults();
+    toast.success("ডিফল্ট সেটিংস পুনরুদ্ধার হয়েছে");
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Live preview notice */}
+      <motion.div
+        initial={{ opacity: 0, y: -8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-start gap-3 rounded-xl p-4"
+        style={{
+          background: "oklch(0.96 0.02 280)",
+          border: "1px solid oklch(0.88 0.06 280)",
+          borderLeft: "4px solid oklch(0.50 0.16 280)",
+        }}
+      >
+        <Eye
+          className="w-4 h-4 flex-shrink-0 mt-0.5"
+          style={{ color: "oklch(0.50 0.16 280)" }}
+        />
+        <div>
+          <p
+            className="text-sm font-semibold"
+            style={{ color: "oklch(0.30 0.12 280)" }}
+          >
+            লাইভ প্রিভিউ
+          </p>
+          <p
+            className="text-xs mt-0.5"
+            style={{ color: "oklch(0.42 0.08 280)" }}
+          >
+            পরিবর্তনগুলি সংরক্ষণ করলে হোমপেজে তাৎক্ষণিকভাবে প্রতিফলিত হবে।
+          </p>
+        </div>
+      </motion.div>
+
+      {/* Section 1: Hero */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          background: "oklch(0.98 0.005 280)",
+          border: "1px solid oklch(0.92 0.04 280)",
+        }}
+      >
+        <FormSection label="হিরো সেকশন" color="oklch(0.50 0.16 280)" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <div className="space-y-1.5">
+            <FormLabel>সাইটের ট্যাগলাইন</FormLabel>
+            <Input
+              value={local.siteTagline}
+              onChange={(e) =>
+                setLocal((p) => ({ ...p, siteTagline: e.target.value }))
+              }
+              className="h-11 rounded-xl border-border/70"
+              placeholder="সাইটের ট্যাগলাইন"
+              data-ocid="admin.settings.tagline.input"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <FormLabel>হিরো শিরোনাম</FormLabel>
+            <Input
+              value={local.heroTitle}
+              onChange={(e) =>
+                setLocal((p) => ({ ...p, heroTitle: e.target.value }))
+              }
+              className="h-11 rounded-xl border-border/70"
+              placeholder="হিরো শিরোনাম"
+              data-ocid="admin.settings.hero_title.input"
+            />
+          </div>
+          <div className="col-span-1 md:col-span-2 space-y-1.5">
+            <FormLabel>হিরো সাবটাইটেল</FormLabel>
+            <Textarea
+              value={local.heroSubtitle}
+              onChange={(e) =>
+                setLocal((p) => ({ ...p, heroSubtitle: e.target.value }))
+              }
+              rows={3}
+              className="resize-none rounded-xl border-border/70"
+              placeholder="হিরো সাবটাইটেল..."
+              data-ocid="admin.settings.hero_subtitle.textarea"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <FormLabel>CTA বাটনের লেখা</FormLabel>
+            <Input
+              value={local.heroCtaText}
+              onChange={(e) =>
+                setLocal((p) => ({ ...p, heroCtaText: e.target.value }))
+              }
+              className="h-11 rounded-xl border-border/70"
+              placeholder="CTA বাটনের লেখা"
+              data-ocid="admin.settings.hero_cta.input"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Section 2: Stats */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          background: "oklch(0.98 0.005 240)",
+          border: "1px solid oklch(0.92 0.04 240)",
+        }}
+      >
+        <FormSection label="পরিসংখ্যান (৪টি)" color="oklch(0.52 0.16 240)" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          {local.stats.map((stat, idx) => (
+            <div
+              key={STAT_KEYS[idx]}
+              className="rounded-xl p-3 space-y-2"
+              style={{
+                background: "oklch(1 0 0)",
+                border: "1px solid oklch(0.91 0.03 240)",
+              }}
+            >
+              <div
+                className="text-xs font-bold uppercase tracking-widest"
+                style={{ color: "oklch(0.52 0.16 240)" }}
+              >
+                পরিসংখ্যান {idx + 1}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    সংখ্যা/মান
+                  </Label>
+                  <Input
+                    value={stat.value}
+                    onChange={(e) => {
+                      const updated = local.stats.map((s, i) =>
+                        i === idx ? { ...s, value: e.target.value } : s,
+                      );
+                      setLocal((p) => ({ ...p, stats: updated }));
+                    }}
+                    className="h-9 rounded-lg text-sm border-border/70"
+                    placeholder="যেমন: ৫০০+"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">লেবেল</Label>
+                  <Input
+                    value={stat.label}
+                    onChange={(e) => {
+                      const updated = local.stats.map((s, i) =>
+                        i === idx ? { ...s, label: e.target.value } : s,
+                      );
+                      setLocal((p) => ({ ...p, stats: updated }));
+                    }}
+                    className="h-9 rounded-lg text-sm border-border/70"
+                    placeholder="যেমন: সক্রিয় জমি"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 3: Features */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          background: "oklch(0.98 0.005 300)",
+          border: "1px solid oklch(0.92 0.04 300)",
+        }}
+      >
+        <FormSection label="ফিচার কার্ড (৪টি)" color="oklch(0.52 0.15 300)" />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+          {local.features.map((feat, idx) => (
+            <div
+              key={FEATURE_KEYS[idx]}
+              className="rounded-xl p-3 space-y-2"
+              style={{
+                background: "oklch(1 0 0)",
+                border: "1px solid oklch(0.91 0.03 300)",
+              }}
+            >
+              <div
+                className="text-xs font-bold uppercase tracking-widest"
+                style={{ color: "oklch(0.52 0.15 300)" }}
+              >
+                ফিচার {idx + 1}
+              </div>
+              <div className="space-y-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    শিরোনাম
+                  </Label>
+                  <Input
+                    value={feat.title}
+                    onChange={(e) => {
+                      const updated = local.features.map((f, i) =>
+                        i === idx ? { ...f, title: e.target.value } : f,
+                      );
+                      setLocal((p) => ({ ...p, features: updated }));
+                    }}
+                    className="h-9 rounded-lg text-sm border-border/70"
+                    placeholder="ফিচারের শিরোনাম"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">বিবরণ</Label>
+                  <Input
+                    value={feat.desc}
+                    onChange={(e) => {
+                      const updated = local.features.map((f, i) =>
+                        i === idx ? { ...f, desc: e.target.value } : f,
+                      );
+                      setLocal((p) => ({ ...p, features: updated }));
+                    }}
+                    className="h-9 rounded-lg text-sm border-border/70"
+                    placeholder="ফিচারের বিবরণ"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 4: How it works */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          background: "oklch(0.98 0.005 155)",
+          border: "1px solid oklch(0.92 0.04 155)",
+        }}
+      >
+        <FormSection label="কীভাবে কাজ করে (৩ ধাপ)" color="oklch(0.55 0.16 155)" />
+
+        <div className="grid grid-cols-1 gap-4 pt-2">
+          {local.howItWorksSteps.map((step, idx) => (
+            <div
+              key={STEP_KEYS[idx]}
+              className="rounded-xl p-3 space-y-2"
+              style={{
+                background: "oklch(1 0 0)",
+                border: "1px solid oklch(0.91 0.03 155)",
+              }}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-xs font-bold uppercase tracking-widest"
+                  style={{ color: "oklch(0.55 0.16 155)" }}
+                >
+                  ধাপ {step.step}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    শিরোনাম
+                  </Label>
+                  <Input
+                    value={step.title}
+                    onChange={(e) => {
+                      const updated = local.howItWorksSteps.map((s, i) =>
+                        i === idx ? { ...s, title: e.target.value } : s,
+                      );
+                      setLocal((p) => ({ ...p, howItWorksSteps: updated }));
+                    }}
+                    className="h-9 rounded-lg text-sm border-border/70"
+                    placeholder="ধাপের শিরোনাম"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">বিবরণ</Label>
+                  <Input
+                    value={step.desc}
+                    onChange={(e) => {
+                      const updated = local.howItWorksSteps.map((s, i) =>
+                        i === idx ? { ...s, desc: e.target.value } : s,
+                      );
+                      setLocal((p) => ({ ...p, howItWorksSteps: updated }));
+                    }}
+                    className="h-9 rounded-lg text-sm border-border/70"
+                    placeholder="ধাপের বিবরণ"
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Section 5: Other */}
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          background: "oklch(0.98 0.01 78)",
+          border: "1px solid oklch(0.92 0.06 78)",
+        }}
+      >
+        <FormSection label="অন্যান্য" color="oklch(0.62 0.18 78)" />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+          <div
+            className="flex items-center justify-between p-4 rounded-xl"
+            style={{
+              background: "oklch(1 0 0)",
+              border: "1px solid oklch(0.91 0.05 78)",
+            }}
+          >
+            <div>
+              <div className="text-sm font-semibold text-foreground/80">
+                জনপ্রিয় এলাকা সেকশন দেখান
+              </div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                হোমপেজে "জনপ্রিয় এলাকা" গ্রিড দেখাবে
+              </div>
+            </div>
+            <Switch
+              checked={local.showPopularAreas}
+              onCheckedChange={(v) =>
+                setLocal((p) => ({ ...p, showPopularAreas: v }))
+              }
+              data-ocid="admin.settings.popular_areas.switch"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <FormLabel>ফুটার কপিরাইট লেখা</FormLabel>
+            <Input
+              value={local.footerCopyright}
+              onChange={(e) =>
+                setLocal((p) => ({ ...p, footerCopyright: e.target.value }))
+              }
+              className="h-11 rounded-xl border-border/70"
+              placeholder="জমিবাজার। সর্বস্বত্ব সংরক্ষিত।"
+              data-ocid="admin.settings.footer_copyright.input"
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="flex flex-col sm:flex-row gap-3 pt-2">
+        <Button
+          variant="outline"
+          onClick={handleReset}
+          className="gap-2 rounded-xl h-11 font-medium"
+          data-ocid="admin.settings.reset.button"
+        >
+          <RotateCcw className="w-4 h-4" />
+          ডিফল্টে ফিরুন
+        </Button>
+        <Button
+          onClick={handleSave}
+          className="gap-2 rounded-xl h-11 font-bold text-white shadow-md flex-1 sm:flex-none sm:px-8"
+          style={{
+            background:
+              "linear-gradient(135deg, oklch(0.46 0.16 280) 0%, oklch(0.38 0.14 295) 100%)",
+            boxShadow: "0 4px 16px oklch(0.46 0.16 280 / 0.30)",
+          }}
+          data-ocid="admin.settings.save.submit_button"
+        >
+          <Palette className="w-4 h-4" />
+          সেটিংস সংরক্ষণ করুন
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function AdminPage() {
   const { identity, clear } = useInternetIdentity();
   const { data: isAdmin, isLoading: adminLoading } = useIsAdmin();
@@ -2371,6 +2777,13 @@ export function AdminPage() {
             >
               <Newspaper className="w-4 h-4" /> সংবাদ
             </TabsTrigger>
+            <TabsTrigger
+              value="settings"
+              data-ocid="admin.settings.tab"
+              className="gap-1.5"
+            >
+              <Palette className="w-4 h-4" /> সাইট সেটিংস
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="listings">
@@ -2381,6 +2794,9 @@ export function AdminPage() {
           </TabsContent>
           <TabsContent value="news">
             <NewsManagement />
+          </TabsContent>
+          <TabsContent value="settings">
+            <SiteSettingsManagement />
           </TabsContent>
         </Tabs>
       </div>

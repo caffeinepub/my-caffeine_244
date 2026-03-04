@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGetAllListings, useGetFeaturedListings } from "@/hooks/useQueries";
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { POPULAR_LOCATIONS } from "@/utils/bangladeshData";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -20,62 +21,19 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 
-const stats = [
-  { label: "সক্রিয় জমি", value: "৫০০+", icon: MapPin },
-  { label: "যাচাইকৃত বিক্রেতা", value: "২০০+", icon: ShieldCheck },
-  { label: "সফল লেনদেন", value: "১৫০+", icon: TrendingUp },
-  { label: "নিবন্ধিত ব্যবহারকারী", value: "১,০০০+", icon: Users },
+const featureIcons = [MessageCircle, ShieldCheck, Scale, FileText];
+const featureColors = [
+  "bg-emerald-50 text-emerald-700",
+  "bg-blue-50 text-blue-700",
+  "bg-purple-50 text-purple-700",
+  "bg-amber-50 text-amber-700",
 ];
-
-const features = [
-  {
-    icon: MessageCircle,
-    title: "সরাসরি যোগাযোগ",
-    desc: "দালাল ছাড়া সরাসরি মালিকের সাথে কথা বলুন",
-    color: "bg-emerald-50 text-emerald-700",
-  },
-  {
-    icon: ShieldCheck,
-    title: "যাচাইকৃত বিক্রেতা",
-    desc: "NID ও দলিল যাচাই করা Trust Badge বিক্রেতা",
-    color: "bg-blue-50 text-blue-700",
-  },
-  {
-    icon: Scale,
-    title: "আইনজীবী সহায়তা",
-    desc: "বিশেষজ্ঞ ভূমি আইনজীবীর সাথে সরাসরি পরামর্শ",
-    color: "bg-purple-50 text-purple-700",
-  },
-  {
-    icon: FileText,
-    title: "ডিজিটাল ভল্ট",
-    desc: "এনক্রিপ্টেড নিরাপদ কাগজপত্র সংরক্ষণ",
-    color: "bg-amber-50 text-amber-700",
-  },
-];
-
-const howItWorksSteps = [
-  {
-    step: "০১",
-    icon: Search,
-    title: "জমি খুঁজুন",
-    desc: "বিভাগ, জেলা ও উপজেলা ফিল্টার দিয়ে আপনার পছন্দের এলাকায় জমি খুঁজুন",
-    color: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  },
-  {
-    step: "০২",
-    icon: MessageCircle,
-    title: "মালিকের সাথে কথা বলুন",
-    desc: "সরাসরি WhatsApp বা ফোনে মালিকের সাথে যোগাযোগ করুন — কোনো মধ্যস্থতাকারী নেই",
-    color: "bg-blue-50 text-blue-700 border-blue-200",
-  },
-  {
-    step: "০৩",
-    icon: ShieldCheck,
-    title: "নিরাপদে কেনাবেচা করুন",
-    desc: "অভিজ্ঞ ভূমি আইনজীবীর সহায়তায় নিরাপদ ও বৈধ লেনদেন সম্পন্ন করুন",
-    color: "bg-amber-50 text-amber-700 border-amber-200",
-  },
+const statIcons = [MapPin, ShieldCheck, TrendingUp, Users];
+const stepIcons = [Search, MessageCircle, ShieldCheck];
+const stepColors = [
+  "bg-emerald-50 text-emerald-700 border-emerald-200",
+  "bg-blue-50 text-blue-700 border-blue-200",
+  "bg-amber-50 text-amber-700 border-amber-200",
 ];
 
 const testimonials = [
@@ -154,10 +112,23 @@ const locationIconMap: Record<string, string> = {
 };
 
 export function HomePage() {
+  const { settings } = useSiteSettings();
   const { data: featured, isLoading: featuredLoading } =
     useGetFeaturedListings();
   const { data: allListings } = useGetAllListings();
   const navigate = useNavigate();
+
+  const stats = settings.stats.map((s, i) => ({ ...s, icon: statIcons[i] }));
+  const features = settings.features.map((f, i) => ({
+    ...f,
+    icon: featureIcons[i],
+    color: featureColors[i],
+  }));
+  const howItWorksSteps = settings.howItWorksSteps.map((s, i) => ({
+    ...s,
+    icon: stepIcons[i],
+    color: stepColors[i],
+  }));
 
   const activeCount =
     allListings?.filter((l) => l.status === "active").length ?? 0;
@@ -215,14 +186,13 @@ export function HomePage() {
             className="font-display font-bold text-white leading-[1.1] mb-5 text-balance"
             style={{ fontSize: "clamp(2.4rem, 6.5vw, 4.5rem)" }}
           >
-            সরাসরি মালিকের সাথে{" "}
             <span
               className="text-gold"
               style={{
                 textShadow: "0 0 40px oklch(0.72 0.16 78 / 0.45)",
               }}
             >
-              কথা বলুন
+              {settings.heroTitle}
             </span>
           </motion.h1>
 
@@ -232,7 +202,7 @@ export function HomePage() {
             transition={{ duration: 0.6, delay: 0.22 }}
             className="text-lg md:text-xl text-white/75 mb-3 font-sans tracking-wide"
           >
-            কোনো দালাল নেই&ensp;•&ensp;কোনো লুকানো ফি নেই&ensp;•&ensp;১০০% স্বচ্ছ
+            {settings.heroSubtitle}
           </motion.p>
 
           {activeCount > 0 && (
@@ -467,58 +437,63 @@ export function HomePage() {
       </section>
 
       {/* ===== TOP LOCATIONS ===== */}
-      <section className="bg-secondary/40 py-20">
-        <div className="container max-w-6xl mx-auto px-4">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="text-center mb-10"
-          >
-            <div className="section-label justify-center mb-3">এলাকা</div>
-            <h2 className="section-title text-2xl md:text-3xl mx-auto max-w-md mb-3">
-              জনপ্রিয় এলাকা
-            </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto text-balance">
-              সর্বাধিক অনুসন্ধানকৃত জেলা ও শহরসমূহ
-            </p>
-          </motion.div>
+      {settings.showPopularAreas && (
+        <section className="bg-secondary/40 py-20">
+          <div className="container max-w-6xl mx-auto px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-10"
+            >
+              <div className="section-label justify-center mb-3">এলাকা</div>
+              <h2 className="section-title text-2xl md:text-3xl mx-auto max-w-md mb-3">
+                জনপ্রিয় এলাকা
+              </h2>
+              <p className="text-muted-foreground max-w-xl mx-auto text-balance">
+                সর্বাধিক অনুসন্ধানকৃত জেলা ও শহরসমূহ
+              </p>
+            </motion.div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {POPULAR_LOCATIONS.map((loc, i) => (
-              <motion.button
-                key={loc.district}
-                initial={{ opacity: 0, scale: 0.95 }}
-                whileInView={{ opacity: 1, scale: 1 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.06 }}
-                whileHover={{ y: -4, scale: 1.02 }}
-                onClick={() =>
-                  navigate({
-                    to: "/listings",
-                    search: { division: loc.division, district: loc.district },
-                  })
-                }
-                data-ocid="home.location.button"
-                className="bg-white rounded-xl p-4 border border-border shadow-card hover:shadow-card-hover transition-all duration-300 text-left group cursor-pointer"
-              >
-                <div className="text-3xl mb-2">
-                  {locationIconMap[loc.district] ?? "📍"}
-                </div>
-                <div className="font-heading font-bold text-foreground text-sm group-hover:text-primary transition-colors">
-                  {loc.district}
-                </div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {loc.division} বিভাগ
-                </div>
-                <div className="text-xs text-primary/70 mt-1 line-clamp-1">
-                  {loc.description}
-                </div>
-              </motion.button>
-            ))}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+              {POPULAR_LOCATIONS.map((loc, i) => (
+                <motion.button
+                  key={loc.district}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  whileInView={{ opacity: 1, scale: 1 }}
+                  viewport={{ once: true }}
+                  transition={{ delay: i * 0.06 }}
+                  whileHover={{ y: -4, scale: 1.02 }}
+                  onClick={() =>
+                    navigate({
+                      to: "/listings",
+                      search: {
+                        division: loc.division,
+                        district: loc.district,
+                      },
+                    })
+                  }
+                  data-ocid="home.location.button"
+                  className="bg-white rounded-xl p-4 border border-border shadow-card hover:shadow-card-hover transition-all duration-300 text-left group cursor-pointer"
+                >
+                  <div className="text-3xl mb-2">
+                    {locationIconMap[loc.district] ?? "📍"}
+                  </div>
+                  <div className="font-heading font-bold text-foreground text-sm group-hover:text-primary transition-colors">
+                    {loc.district}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {loc.division} বিভাগ
+                  </div>
+                  <div className="text-xs text-primary/70 mt-1 line-clamp-1">
+                    {loc.description}
+                  </div>
+                </motion.button>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ===== TESTIMONIALS ===== */}
       <section className="py-20">

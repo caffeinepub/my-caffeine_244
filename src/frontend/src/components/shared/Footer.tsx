@@ -1,9 +1,11 @@
+import { useSiteSettings } from "@/hooks/useSiteSettings";
 import { DIVISIONS } from "@/utils/bangladeshData";
 import { Link } from "@tanstack/react-router";
 import { Facebook, Heart, Mail, MapPin, Phone, Youtube } from "lucide-react";
 
 export function Footer() {
   const year = new Date().getFullYear();
+  const { settings } = useSiteSettings();
   const hostname = encodeURIComponent(
     typeof window !== "undefined" ? window.location.hostname : "jomibajar",
   );
@@ -164,7 +166,9 @@ export function Footer() {
         </div>
 
         <div className="mt-10 pt-6 border-t border-primary-foreground/10 flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-primary-foreground/50">
-          <p>© {year} জমিবাজার। সর্বস্বত্ব সংরক্ষিত।</p>
+          <p>
+            © {year} {settings.footerCopyright}
+          </p>
           <p className="flex items-center gap-1">
             Built with{" "}
             <Heart className="w-3 h-3 text-red-400 inline fill-red-400" /> using{" "}
