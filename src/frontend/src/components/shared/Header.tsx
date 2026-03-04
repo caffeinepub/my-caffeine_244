@@ -1,9 +1,7 @@
 import { Button } from "@/components/ui/button";
-import { useInternetIdentity } from "@/hooks/useInternetIdentity";
 import { useIsAdmin } from "@/hooks/useQueries";
-import { useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
-import { LogIn, LogOut, MapPin, Menu, ShieldCheck, X } from "lucide-react";
+import { MapPin, Menu, ShieldCheck, UserPlus, X } from "lucide-react";
 
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
@@ -18,29 +16,8 @@ const navLinks = [
 
 export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { login, clear, loginStatus, identity } = useInternetIdentity();
-  const queryClient = useQueryClient();
   const location = useLocation();
   const { data: isAdmin } = useIsAdmin();
-  const isAuthenticated = !!identity;
-  const isLoggingIn = loginStatus === "logging-in";
-
-  const handleAuth = async () => {
-    if (isAuthenticated) {
-      await clear();
-      queryClient.clear();
-    } else {
-      try {
-        await login();
-      } catch (error: unknown) {
-        const err = error as Error;
-        if (err.message === "User is already authenticated") {
-          await clear();
-          setTimeout(() => login(), 300);
-        }
-      }
-    }
-  };
 
   const [announcementVisible, setAnnouncementVisible] = useState(true);
 
@@ -137,51 +114,25 @@ export function Header() {
               )}
             </nav>
 
-            {/* Auth Button */}
+            {/* Register Button */}
             <div className="hidden md:flex items-center gap-2">
-              {isLoggingIn ? (
-                <Button disabled variant="outline" size="sm">
-                  <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                  লগইন হচ্ছে...
-                </Button>
-              ) : isAuthenticated ? (
-                <div className="flex items-center gap-2">
-                  <div className="relative">
-                    <div
-                      className="w-8 h-8 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-xs font-bold text-primary"
-                      title={identity?.getPrincipal().toString()}
-                    >
-                      {identity
-                        ?.getPrincipal()
-                        .toString()
-                        .slice(0, 2)
-                        .toUpperCase()}
-                    </div>
-                    <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 border-2 border-white rounded-full" />
-                  </div>
-                  <Button
-                    onClick={handleAuth}
-                    variant="outline"
-                    size="sm"
-                    className="gap-1.5"
-                    data-ocid="header.logout_button"
-                  >
-                    <LogOut className="w-4 h-4" /> লগআউট
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  onClick={handleAuth}
-                  disabled={isLoggingIn}
-                  variant="default"
-                  size="sm"
-                  className="bg-primary hover:bg-primary/90 shadow-green"
-                  data-ocid="header.login_button"
-                >
-                  <LogIn className="w-4 h-4 mr-1.5" />
-                  লগইন করুন
-                </Button>
-              )}
+              <Button
+                asChild
+                size="sm"
+                className="gap-1.5 font-semibold shadow-sm"
+                data-ocid="header.register_button"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.32 0.11 155), oklch(0.28 0.10 158))",
+                  border: "none",
+                  color: "white",
+                }}
+              >
+                <Link to="/register">
+                  <UserPlus className="w-4 h-4" />
+                  রেজিস্ট্রেশন করুন
+                </Link>
+              </Button>
             </div>
 
             {/* Mobile hamburger */}
@@ -244,16 +195,21 @@ export function Header() {
                 )}
                 <div className="pt-2 border-t border-border mt-1">
                   <Button
-                    onClick={handleAuth}
-                    disabled={isLoggingIn}
-                    variant={isAuthenticated ? "outline" : "default"}
-                    className="w-full"
+                    asChild
+                    className="w-full gap-2 font-semibold"
+                    data-ocid="header.register_button"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, oklch(0.32 0.11 155), oklch(0.28 0.10 158))",
+                      border: "none",
+                      color: "white",
+                    }}
+                    onClick={() => setMobileOpen(false)}
                   >
-                    {isLoggingIn
-                      ? "লগইন হচ্ছে..."
-                      : isAuthenticated
-                        ? "লগআউট"
-                        : "লগইন করুন"}
+                    <Link to="/register">
+                      <UserPlus className="w-4 h-4" />
+                      রেজিস্ট্রেশন করুন
+                    </Link>
                   </Button>
                 </div>
               </div>

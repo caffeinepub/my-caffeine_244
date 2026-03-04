@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { useInternetIdentity } from "@/hooks/useInternetIdentity";
 import {
   useCreateLawyer,
   useCreateListing,
@@ -39,7 +38,6 @@ import {
   useGetAllLawyers,
   useGetAllListings,
   useGetAllNews,
-  useIsAdmin,
   useToggleFeatured,
   useUpdateLawyer,
   useUpdateListing,
@@ -206,15 +204,29 @@ function FormDialogShell({
 }
 
 // ─── Admin Login ────────────────────────────────────────────────────────────
-function AdminLogin() {
-  const { login, loginStatus } = useInternetIdentity();
-  const isLoggingIn = loginStatus === "logging-in";
+function AdminLogin({ onLogin }: { onLogin: () => void }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoggingIn(true);
+    // Simulate brief loading for UX
+    await new Promise((r) => setTimeout(r, 400));
+    if (username === "admin" && password === "admin123") {
+      onLogin();
+    } else {
+      toast.error("ভুল ইউজারনেম বা পাসওয়ার্ড");
+    }
+    setIsLoggingIn(false);
+  };
 
   const features = [
     {
       icon: ShieldCheck,
       title: "নিরাপদ যাচাইকরণ",
-      desc: "Internet Identity দিয়ে সুরক্ষিত অ্যাক্সেস",
+      desc: "পাসওয়ার্ড দিয়ে সুরক্ষিত অ্যাক্সেস",
       iconBg: "oklch(0.35 0.12 155 / 0.30)",
       iconColor: "oklch(0.82 0.18 78)",
     },
@@ -669,26 +681,118 @@ function AdminLogin() {
                     className="text-xs font-bold mb-0.5"
                     style={{ color: "oklch(0.32 0.12 215)" }}
                   >
-                    Internet Identity লগইন
+                    অ্যাডমিন লগইন তথ্য
                   </p>
                   <p
                     className="text-xs leading-relaxed"
                     style={{ color: "oklch(0.42 0.08 215)" }}
                   >
-                    আপনার ICP ডিজিটাল পরিচয় ব্যবহার করে নিরাপদে প্রবেশ করুন। কোনো
-                    পাসওয়ার্ড প্রয়োজন নেই।
+                    ইউজারনেম: <strong>admin</strong> | পাসওয়ার্ড:{" "}
+                    <strong>admin123</strong>
                   </p>
                 </div>
               </motion.div>
 
-              {/* Login button */}
-              <motion.div
+              {/* Username/Password form */}
+              <motion.form
+                onSubmit={handleLogin}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.34 }}
+                transition={{ delay: 0.32 }}
+                className="space-y-4"
               >
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="admin-username"
+                    className="text-sm font-semibold"
+                    style={{ color: "oklch(0.28 0.06 155)" }}
+                  >
+                    ইউজারনেম
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <Users
+                        className="w-4 h-4"
+                        style={{ color: "oklch(0.60 0.06 240)" }}
+                      />
+                    </span>
+                    <input
+                      id="admin-username"
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder="ইউজারনেম লিখুন"
+                      autoComplete="username"
+                      required
+                      data-ocid="admin.login.username.input"
+                      className="w-full h-12 pl-10 pr-4 rounded-xl border text-sm outline-none transition-all"
+                      style={{
+                        borderColor: "oklch(0.88 0.04 240)",
+                        background: "oklch(0.98 0.005 240)",
+                        color: "oklch(0.20 0.06 240)",
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor =
+                          "oklch(0.45 0.16 155)";
+                        e.currentTarget.style.boxShadow =
+                          "0 0 0 3px oklch(0.45 0.16 155 / 0.15)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor =
+                          "oklch(0.88 0.04 240)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor="admin-password"
+                    className="text-sm font-semibold"
+                    style={{ color: "oklch(0.28 0.06 155)" }}
+                  >
+                    পাসওয়ার্ড
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none">
+                      <LockKeyhole
+                        className="w-4 h-4"
+                        style={{ color: "oklch(0.60 0.06 240)" }}
+                      />
+                    </span>
+                    <input
+                      id="admin-password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="পাসওয়ার্ড লিখুন"
+                      autoComplete="current-password"
+                      required
+                      data-ocid="admin.login.password.input"
+                      className="w-full h-12 pl-10 pr-4 rounded-xl border text-sm outline-none transition-all"
+                      style={{
+                        borderColor: "oklch(0.88 0.04 240)",
+                        background: "oklch(0.98 0.005 240)",
+                        color: "oklch(0.20 0.06 240)",
+                      }}
+                      onFocus={(e) => {
+                        e.currentTarget.style.borderColor =
+                          "oklch(0.45 0.16 155)";
+                        e.currentTarget.style.boxShadow =
+                          "0 0 0 3px oklch(0.45 0.16 155 / 0.15)";
+                      }}
+                      onBlur={(e) => {
+                        e.currentTarget.style.borderColor =
+                          "oklch(0.88 0.04 240)";
+                        e.currentTarget.style.boxShadow = "none";
+                      }}
+                    />
+                  </div>
+                </div>
+
                 <Button
-                  onClick={() => login()}
+                  type="submit"
                   disabled={isLoggingIn}
                   size="lg"
                   className="w-full h-14 text-base font-bold text-white shadow-lg transition-all duration-300 group relative overflow-hidden rounded-xl"
@@ -721,7 +825,7 @@ function AdminLogin() {
                     </span>
                   )}
                 </Button>
-              </motion.div>
+              </motion.form>
 
               {/* Social proof */}
               <motion.div
@@ -778,24 +882,6 @@ function AdminLogin() {
             </Link>
           </motion.div>
         </motion.div>
-      </div>
-    </div>
-  );
-}
-
-function AccessDenied() {
-  return (
-    <div className="min-h-[60vh] flex items-center justify-center">
-      <div className="text-center max-w-sm">
-        <div className="w-16 h-16 bg-destructive/10 rounded-full flex items-center justify-center mx-auto mb-4">
-          <ShieldCheck className="w-8 h-8 text-destructive" />
-        </div>
-        <h2 className="font-heading font-bold text-xl text-foreground mb-2">
-          অ্যাক্সেস নেই
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          এই পেজটি শুধুমাত্র অ্যাডমিনদের জন্য
-        </p>
       </div>
     </div>
   );
@@ -2461,31 +2547,16 @@ function SiteSettingsManagement() {
 }
 
 export function AdminPage() {
-  const { identity, clear } = useInternetIdentity();
-  const { data: isAdmin, isLoading: adminLoading } = useIsAdmin();
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const { data: listings } = useGetAllListings();
   const { data: lawyers } = useGetAllLawyers();
   const { data: news } = useGetAllNews();
   const [activeTab, setActiveTab] = useState("listings");
 
-  if (!identity) return <AdminLogin />;
-  if (adminLoading) {
-    return (
-      <div className="container max-w-7xl mx-auto px-4 py-8">
-        <Skeleton className="h-8 w-48 mb-4" />
-        <Skeleton className="h-32 w-full" />
-      </div>
-    );
-  }
-  if (!isAdmin) return <AccessDenied />;
+  if (!isAdminLoggedIn)
+    return <AdminLogin onLogin={() => setIsAdminLoggedIn(true)} />;
 
-  const principal = identity?.getPrincipal().toString() ?? "";
-  const shortPrincipal =
-    principal.length > 16
-      ? `${principal.slice(0, 8)}...${principal.slice(-6)}`
-      : principal;
-
-  const profileInitials = principal.slice(0, 2).toUpperCase();
+  const profileInitials = "AD";
 
   const dashStats = [
     {
@@ -2621,10 +2692,10 @@ export function AdminPage() {
                   {profileInitials}
                 </div>
                 <span
-                  className="text-xs font-mono font-medium"
+                  className="text-xs font-medium"
                   style={{ color: "oklch(1 0 0 / 0.65)" }}
                 >
-                  {shortPrincipal}
+                  admin
                 </span>
               </div>
 
@@ -2632,7 +2703,7 @@ export function AdminPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => clear()}
+                onClick={() => setIsAdminLoggedIn(false)}
                 data-ocid="admin.header.logout_button"
                 className="gap-1.5 text-xs border-white/20 hover:bg-white/10 hover:border-white/30 transition-all"
                 style={{

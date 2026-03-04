@@ -9,6 +9,7 @@ import { LawyersPage } from "@/pages/LawyersPage";
 import { ListingDetailPage } from "@/pages/ListingDetailPage";
 import { ListingsPage } from "@/pages/ListingsPage";
 import { NewsPage } from "@/pages/NewsPage";
+import { RegisterPage } from "@/pages/RegisterPage";
 import {
   Outlet,
   RouterProvider,
@@ -80,6 +81,12 @@ const adminRoute = createRoute({
   component: AdminPage,
 });
 
+const registerRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/register",
+  component: RegisterPage,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   listingsRoute,
@@ -88,6 +95,7 @@ const routeTree = rootRoute.addChildren([
   lawyersRoute,
   newsRoute,
   adminRoute,
+  registerRoute,
 ]);
 
 const router = createRouter({ routeTree });
