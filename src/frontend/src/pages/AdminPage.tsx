@@ -34,6 +34,7 @@ import {
   useLocalLawyers,
   useLocalListings,
   useLocalNews,
+  useLocalOffers,
   useLocalRegistrations,
 } from "@/hooks/useLocalStore";
 import type { RegisteredUser } from "@/hooks/useLocalStore";
@@ -57,6 +58,7 @@ import type React from "react";
 import { Link } from "@tanstack/react-router";
 import {
   AlertTriangle,
+  ArrowLeftRight,
   ArrowRight,
   BarChart2,
   Building2,
@@ -72,6 +74,7 @@ import {
   LockKeyhole,
   LogOut,
   MapPin,
+  MessageSquare,
   Minus,
   Newspaper,
   Palette,
@@ -84,6 +87,8 @@ import {
   Settings,
   ShieldCheck,
   Star,
+  ThumbsDown,
+  ThumbsUp,
   Trash2,
   TrendingUp,
   UserCheck,
@@ -3467,6 +3472,7 @@ export function AdminPage() {
   const { lawyers } = useLocalLawyers();
   const { news } = useLocalNews();
   const { registrations } = useLocalRegistrations();
+  const { offers: allOffersForDash } = useLocalOffers();
   const [activeTab, setActiveTab] = useState("listings");
 
   if (!isAdminLoggedIn)
@@ -3509,6 +3515,13 @@ export function AdminPage() {
       icon: UserCheck,
       color: "bg-teal-50 text-teal-700",
       borderColor: "oklch(0.55 0.14 185)",
+    },
+    {
+      label: "মোট অফার",
+      value: allOffersForDash.length,
+      icon: ArrowLeftRight,
+      color: "bg-rose-50 text-rose-700",
+      borderColor: "oklch(0.55 0.18 27)",
     },
   ];
 
@@ -3762,6 +3775,24 @@ export function AdminPage() {
                 </div>
               </div>
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab("offers")}
+              className="flex items-center gap-3 p-3 rounded-xl border border-border bg-white hover:border-rose-300 hover:bg-rose-50/50 transition-all text-left group"
+              data-ocid="admin.quickaction.offers.button"
+            >
+              <div className="w-9 h-9 rounded-lg bg-rose-100 flex items-center justify-center group-hover:bg-rose-200 transition-colors">
+                <ArrowLeftRight className="w-4 h-4 text-rose-600" />
+              </div>
+              <div>
+                <div className="text-sm font-medium text-foreground">
+                  অফার পোর্টাল
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {allOffersForDash.length} টি অফার
+                </div>
+              </div>
+            </button>
           </div>
         </motion.div>
 
@@ -3822,6 +3853,29 @@ export function AdminPage() {
               )}
             </TabsTrigger>
             <TabsTrigger
+              value="offers"
+              data-ocid="admin.offers.tab"
+              className="gap-1.5"
+            >
+              <ArrowLeftRight className="w-4 h-4" /> অফার পোর্টাল
+              {allOffersForDash.filter((o) => o.status === "pending_approval")
+                .length > 0 && (
+                <span
+                  className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold"
+                  style={{
+                    background: "oklch(0.55 0.18 27 / 0.15)",
+                    color: "oklch(0.45 0.16 27)",
+                  }}
+                >
+                  {
+                    allOffersForDash.filter(
+                      (o) => o.status === "pending_approval",
+                    ).length
+                  }
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger
               value="account"
               data-ocid="admin.account.tab"
               className="gap-1.5"
@@ -3844,6 +3898,9 @@ export function AdminPage() {
           </TabsContent>
           <TabsContent value="registrations">
             <RegistrationsManagement />
+          </TabsContent>
+          <TabsContent value="offers">
+            <OffersManagement />
           </TabsContent>
           <TabsContent value="settings">
             <SiteSettingsManagement />
@@ -4149,6 +4206,501 @@ function RegistrationsManagement() {
           </Table>
         )}
       </div>
+    </div>
+  );
+}
+
+// ===== OFFERS MANAGEMENT =====
+function OffersManagement() {
+  const { offers, updateOfferStatus, counterOffer } = useLocalOffers();
+  const { listings } = useLocalListings();
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [search, setSearch] = useState("");
+  const [counterDialogOffer, setCounterDialogOffer] = useState<
+    import("@/backend.d").Offer | null
+  >(null);
+  const [counterPrice, setCounterPrice] = useState("");
+  const [counterMessage, setCounterMessage] = useState("");
+
+  const pendingCount = offers.filter(
+    (o) => o.status === "pending_approval",
+  ).length;
+  const acceptedCount = offers.filter((o) => o.status === "accepted").length;
+  const rejectedCount = offers.filter((o) => o.status === "rejected").length;
+  const counteredCount = offers.filter((o) => o.status === "countered").length;
+
+  const filtered = offers.filter((o) => {
+    const matchStatus = filterStatus === "all" || o.status === filterStatus;
+    const matchSearch =
+      search === "" ||
+      o.buyerName.toLowerCase().includes(search.toLowerCase()) ||
+      o.buyerPhone.includes(search) ||
+      o.listingId.includes(search);
+    return matchStatus && matchSearch;
+  });
+
+  const getListingTitle = (listingId: string) => {
+    const l = listings.find((x) => x.id === listingId);
+    return l ? l.title : listingId;
+  };
+
+  const handleAccept = (id: string) => {
+    updateOfferStatus(id, "accepted");
+    toast.success("অফার গৃহীত হয়েছে");
+  };
+
+  const handleReject = (id: string) => {
+    updateOfferStatus(id, "rejected");
+    toast.success("অফার প্রত্যাখ্যান করা হয়েছে");
+  };
+
+  const handleCounter = () => {
+    if (!counterDialogOffer || !counterPrice) {
+      toast.error("পাল্টা মূল্য দিন");
+      return;
+    }
+    counterOffer(
+      counterDialogOffer.id,
+      BigInt(Math.round(Number(counterPrice))),
+      counterMessage,
+    );
+    toast.success("পাল্টা অফার পাঠানো হয়েছে");
+    setCounterDialogOffer(null);
+    setCounterPrice("");
+    setCounterMessage("");
+  };
+
+  const statusColors: Record<string, string> = {
+    pending_approval: "oklch(0.65 0.18 78)",
+    accepted: "oklch(0.55 0.16 155)",
+    rejected: "oklch(0.55 0.18 27)",
+    countered: "oklch(0.55 0.14 300)",
+  };
+
+  const statusBg: Record<string, string> = {
+    pending_approval: "oklch(0.97 0.03 78)",
+    accepted: "oklch(0.97 0.03 155)",
+    rejected: "oklch(0.97 0.03 27)",
+    countered: "oklch(0.97 0.02 300)",
+  };
+
+  return (
+    <div>
+      {/* Header banner */}
+      <div
+        className="rounded-2xl p-5 mb-6 flex flex-col sm:flex-row sm:items-center gap-4 relative overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, oklch(0.97 0.025 27) 0%, oklch(0.99 0.008 27) 100%)",
+          border: "1px solid oklch(0.88 0.06 27)",
+          borderLeft: "4px solid oklch(0.55 0.18 27)",
+        }}
+        data-ocid="admin.offers.panel"
+      >
+        <div
+          className="absolute -right-8 -top-8 w-28 h-28 rounded-full opacity-10"
+          style={{ background: "oklch(0.55 0.18 27)" }}
+        />
+        <div className="flex items-center gap-4 flex-1 relative z-10">
+          <div
+            className="w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-md"
+            style={{
+              background:
+                "linear-gradient(135deg, oklch(0.52 0.18 27), oklch(0.45 0.16 20))",
+            }}
+          >
+            <ArrowLeftRight className="w-7 h-7 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-bold text-foreground">অফার পোর্টাল ব্যবস্থাপনা</h4>
+              {pendingCount > 0 && (
+                <motion.span
+                  animate={{ scale: [1, 1.08, 1] }}
+                  transition={{
+                    duration: 2,
+                    repeat: Number.POSITIVE_INFINITY,
+                    ease: "easeInOut",
+                  }}
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold"
+                  style={{
+                    background: "oklch(0.55 0.18 27 / 0.15)",
+                    color: "oklch(0.40 0.14 27)",
+                    border: "1px solid oklch(0.55 0.18 27 / 0.25)",
+                  }}
+                >
+                  {pendingCount} নতুন
+                </motion.span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              ক্রেতাদের অফার পর্যালোচনা করুন, গ্রহণ, প্রত্যাখ্যান বা পাল্টা অফার দিন
+            </p>
+          </div>
+        </div>
+        {/* Summary badges */}
+        <div className="flex flex-wrap gap-2 relative z-10">
+          {[
+            {
+              label: "মোট",
+              value: offers.length,
+              color: "oklch(0.52 0.14 240)",
+            },
+            {
+              label: "অপেক্ষমান",
+              value: pendingCount,
+              color: "oklch(0.55 0.18 78)",
+            },
+            {
+              label: "গৃহীত",
+              value: acceptedCount,
+              color: "oklch(0.55 0.16 155)",
+            },
+            {
+              label: "প্রত্যাখ্যাত",
+              value: rejectedCount,
+              color: "oklch(0.55 0.18 27)",
+            },
+            {
+              label: "পাল্টা",
+              value: counteredCount,
+              color: "oklch(0.52 0.14 300)",
+            },
+          ].map((s) => (
+            <div
+              key={s.label}
+              className="flex flex-col items-center px-3 py-1.5 rounded-xl text-xs font-bold"
+              style={{
+                background: `${s.color} / 0.10`,
+                color: s.color,
+                border: `1px solid ${s.color} / 0.20`,
+                backgroundColor: `color-mix(in oklch, ${s.color} 12%, white)`,
+              }}
+            >
+              <span className="text-lg leading-none" style={{ color: s.color }}>
+                {s.value}
+              </span>
+              <span className="text-[10px] mt-0.5 opacity-80">{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
+        <div className="relative flex-1">
+          <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
+            placeholder="ক্রেতার নাম বা ফোন দিয়ে খুঁজুন..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9 h-10 rounded-xl"
+            data-ocid="admin.offers.search_input"
+          />
+        </div>
+        <Select value={filterStatus} onValueChange={setFilterStatus}>
+          <SelectTrigger
+            className="h-10 rounded-xl w-full sm:w-48"
+            data-ocid="admin.offers.filter.select"
+          >
+            <SelectValue placeholder="অবস্থা ফিল্টার" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">সব অফার</SelectItem>
+            <SelectItem value="pending_approval">অপেক্ষমান</SelectItem>
+            <SelectItem value="accepted">গৃহীত</SelectItem>
+            <SelectItem value="rejected">প্রত্যাখ্যাত</SelectItem>
+            <SelectItem value="countered">পাল্টা অফার দেওয়া</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Offers list */}
+      {filtered.length === 0 ? (
+        <div
+          className="text-center py-16 rounded-2xl"
+          style={{
+            background: "oklch(0.97 0.005 240)",
+            border: "1px dashed oklch(0.85 0.02 240)",
+          }}
+          data-ocid="admin.offers.empty_state"
+        >
+          <ArrowLeftRight className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-30" />
+          <p className="text-sm font-medium text-muted-foreground">
+            কোনো অফার পাওয়া যায়নি
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            ক্রেতারা জমির বিস্তারিত পেজে গিয়ে অফার পাঠাতে পারবেন
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered
+            .sort((a, b) => Number(b.createdAt) - Number(a.createdAt))
+            .map((offer, i) => (
+              <motion.div
+                key={offer.id}
+                data-ocid={`admin.offers.item.${i + 1}`}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.04 }}
+                className="bg-white rounded-2xl border border-border p-5 shadow-sm"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-start gap-4">
+                  {/* Left: Offer info */}
+                  <div className="flex-1 min-w-0">
+                    {/* Status badge + listing */}
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <span
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold"
+                        style={{
+                          background:
+                            statusBg[offer.status] ?? "oklch(0.96 0 0)",
+                          color: statusColors[offer.status] ?? "oklch(0.5 0 0)",
+                          border: `1px solid ${statusColors[offer.status] ?? "oklch(0.8 0 0)"} / 0.30`,
+                        }}
+                      >
+                        {getStatusLabel(offer.status)}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate max-w-[200px]">
+                        📍 {getListingTitle(offer.listingId)}
+                      </span>
+                    </div>
+
+                    {/* Price */}
+                    <div className="flex items-baseline gap-2 mb-2">
+                      <span className="text-xl font-bold text-primary">
+                        {formatBDT(offer.offerPrice)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        অফার মূল্য
+                      </span>
+                    </div>
+
+                    {/* Buyer info */}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-muted-foreground mb-2">
+                      <span className="flex items-center gap-1">
+                        <Users className="w-3.5 h-3.5" />
+                        {offer.buyerName}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <Phone className="w-3.5 h-3.5" />
+                        {offer.buyerPhone}
+                      </span>
+                      <span className="text-xs">
+                        {new Date(
+                          Number(offer.createdAt) / 1_000_000,
+                        ).toLocaleDateString("bn-BD", {
+                          year: "numeric",
+                          month: "short",
+                          day: "numeric",
+                        })}
+                      </span>
+                    </div>
+
+                    {/* Message */}
+                    {offer.message && (
+                      <p className="text-xs text-foreground/70 bg-muted/50 rounded-lg px-3 py-2 mb-2">
+                        "{offer.message}"
+                      </p>
+                    )}
+
+                    {/* Counter offer info */}
+                    {offer.counterPrice && (
+                      <div
+                        className="rounded-lg px-3 py-2 text-xs mb-2"
+                        style={{
+                          background: "oklch(0.97 0.03 300)",
+                          border: "1px solid oklch(0.88 0.06 300)",
+                        }}
+                      >
+                        <span
+                          className="font-bold"
+                          style={{ color: "oklch(0.42 0.12 300)" }}
+                        >
+                          পাল্টা অফার:
+                        </span>{" "}
+                        <span style={{ color: "oklch(0.42 0.12 300)" }}>
+                          {formatBDT(offer.counterPrice)}
+                        </span>
+                        {offer.counterMessage && (
+                          <span className="text-muted-foreground">
+                            {" "}
+                            — {offer.counterMessage}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right: Action buttons */}
+                  {offer.status === "pending_approval" && (
+                    <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        onClick={() => handleAccept(offer.id)}
+                        className="gap-1.5 text-xs font-bold rounded-xl text-white"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, oklch(0.50 0.16 155), oklch(0.43 0.14 165))",
+                          minWidth: "90px",
+                        }}
+                        data-ocid={`admin.offers.accept_button.${i + 1}`}
+                      >
+                        <ThumbsUp className="w-3.5 h-3.5" />
+                        গৃহীত
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setCounterDialogOffer(offer);
+                          setCounterPrice("");
+                          setCounterMessage("");
+                        }}
+                        className="gap-1.5 text-xs font-bold rounded-xl"
+                        style={{
+                          borderColor: "oklch(0.52 0.14 300)",
+                          color: "oklch(0.42 0.12 300)",
+                        }}
+                        data-ocid={`admin.offers.counter_button.${i + 1}`}
+                      >
+                        <ArrowLeftRight className="w-3.5 h-3.5" />
+                        পাল্টা
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleReject(offer.id)}
+                        className="gap-1.5 text-xs font-bold rounded-xl"
+                        style={{
+                          borderColor: "oklch(0.55 0.18 27)",
+                          color: "oklch(0.45 0.16 27)",
+                        }}
+                        data-ocid={`admin.offers.reject_button.${i + 1}`}
+                      >
+                        <ThumbsDown className="w-3.5 h-3.5" />
+                        প্রত্যাখ্যান
+                      </Button>
+                    </div>
+                  )}
+                  {offer.status === "countered" && (
+                    <div className="flex sm:flex-col gap-2 flex-shrink-0">
+                      <Button
+                        size="sm"
+                        onClick={() => handleAccept(offer.id)}
+                        className="gap-1.5 text-xs font-bold rounded-xl text-white"
+                        style={{
+                          background:
+                            "linear-gradient(135deg, oklch(0.50 0.16 155), oklch(0.43 0.14 165))",
+                        }}
+                        data-ocid={`admin.offers.accept_countered_button.${i + 1}`}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        চুক্তি সম্পন্ন
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleReject(offer.id)}
+                        className="gap-1.5 text-xs font-bold rounded-xl"
+                        style={{
+                          borderColor: "oklch(0.55 0.18 27)",
+                          color: "oklch(0.45 0.16 27)",
+                        }}
+                        data-ocid={`admin.offers.reject_countered_button.${i + 1}`}
+                      >
+                        <X className="w-3.5 h-3.5" />
+                        বাতিল
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+        </div>
+      )}
+
+      {/* Counter offer dialog */}
+      <Dialog
+        open={!!counterDialogOffer}
+        onOpenChange={(open) => !open && setCounterDialogOffer(null)}
+      >
+        <DialogContent data-ocid="admin.offers.counter.dialog">
+          <FormDialogShell
+            title="পাল্টা অফার দিন"
+            icon={ArrowLeftRight}
+            gradientFrom="oklch(0.52 0.14 300)"
+            gradientTo="oklch(0.42 0.12 310)"
+          >
+            {counterDialogOffer && (
+              <div
+                className="mb-4 rounded-xl px-4 py-3 text-sm"
+                style={{
+                  background: "oklch(0.97 0.02 27)",
+                  border: "1px solid oklch(0.88 0.05 27)",
+                }}
+              >
+                <span className="text-muted-foreground">ক্রেতার অফার: </span>
+                <span className="font-bold text-primary">
+                  {formatBDT(counterDialogOffer.offerPrice)}
+                </span>
+                <span className="ml-2 text-muted-foreground text-xs">
+                  — {counterDialogOffer.buyerName}
+                </span>
+              </div>
+            )}
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <FormLabel required>পাল্টা মূল্য (টাকা)</FormLabel>
+                <Input
+                  type="number"
+                  placeholder="পাল্টা মূল্য দিন"
+                  value={counterPrice}
+                  onChange={(e) => setCounterPrice(e.target.value)}
+                  className="h-11 rounded-xl"
+                  data-ocid="admin.offers.counter.price.input"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <FormLabel>বার্তা (ঐচ্ছিক)</FormLabel>
+                <Textarea
+                  placeholder="ক্রেতাকে কিছু বলুন..."
+                  value={counterMessage}
+                  onChange={(e) => setCounterMessage(e.target.value)}
+                  rows={3}
+                  className="resize-none rounded-xl"
+                  data-ocid="admin.offers.counter.message.textarea"
+                />
+              </div>
+            </div>
+            <DialogFooter className="mt-6 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCounterDialogOffer(null)}
+                className="rounded-xl"
+                data-ocid="admin.offers.counter.cancel_button"
+              >
+                বাতিল
+              </Button>
+              <Button
+                type="button"
+                onClick={handleCounter}
+                className="rounded-xl font-bold text-white gap-2"
+                style={{
+                  background:
+                    "linear-gradient(135deg, oklch(0.52 0.14 300), oklch(0.42 0.12 310))",
+                }}
+                data-ocid="admin.offers.counter.submit_button"
+              >
+                <ArrowLeftRight className="w-4 h-4" />
+                পাল্টা অফার পাঠান
+              </Button>
+            </DialogFooter>
+          </FormDialogShell>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
